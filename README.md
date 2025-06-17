@@ -7,6 +7,11 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The user must install cuda toolkit themselves.
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system memory. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
+### Requirements
+- OS - Linux (Ubuntu 24.10 recommended).
+- GPU - nVidia - CUDA 11+ compatible with NVIDIA driver 450.80+, may be primary/secondary/compute GPU. No VRAM requirement (as uses unified memory).
+- Python - Unknown min version (will be assessed after working version, but presumed 3.8+).
+
 ### Development
 Details of file structure...
 - Core Project files...
