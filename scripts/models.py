@@ -4,19 +4,13 @@ import time
 import re
 import os
 from pathlib import Path
-from datetime import datetime
-import gradio as gr
-from scripts.prompts import get_system_message, get_reasoning_instruction
 import scripts.temporary as temporary
-from scripts.temporary import (
-    CONTEXT_SIZE, BATCH_SIZE, LLAMA_CPP_BINARY, SELECTED_GPU,
-    MODEL_NAME, REPEAT_PENALTY, TEMPERATURE, MODELS_LOADED, CHAT_FORMAT_MAP
-)
+from scripts.prompts import get_system_message
 
 def get_chat_format(metadata):
     """Determine the chat format based on the model's architecture."""
     architecture = metadata.get('general.architecture', 'unknown')
-    return CHAT_FORMAT_MAP.get(architecture, 'llama-2')
+    return temporary.CHAT_FORMAT_MAP.get(architecture, 'llama-2')
 
 def get_model_metadata(model_path: str) -> dict:
     """Retrieve metadata from a GGUF model."""

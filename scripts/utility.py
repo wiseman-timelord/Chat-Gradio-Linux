@@ -24,15 +24,19 @@ def generate_session_id():
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 def generate_session_label(session_log):
-    import yake
     if not session_log:
         return "Untitled"
     text = " ".join([msg['content'].replace("User:\n", "", 1) if msg['role'] == 'user' else msg['content'] for msg in session_log])
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-    kw_extractor = yake.KeywordExtractor(lan="en", n=4, dedupLim=0.9, top=1)
-    keywords = kw_extractor.extract_keywords(text)
-    description = keywords[0][0] if keywords else "No description"
-    return description[:25] if len(description) > 25 else description
+    # Simplified keyword extraction (removed YAKE dependency)
+    words = re.findall(r'\b\w{4,}\b', text.lower())
+    freq = {}
+    for word in words:
+        freq[word] = freq.get(word, 0) + 1
+    if not freq:
+        return "No description"
+    top_word = max(freq, key=freq.get)
+    return top_word.capitalize()[:25]
 
 def save_session_history(session_log, attached_files):
     if not temporary.current_session_id:
