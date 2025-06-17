@@ -49,4 +49,4 @@ project_root/
 
 ### Notation
 - Ubuntu ChatBots now? In-short Ubuntu 24.10 has allows to install, "RX 470" as main with "1060 3GB" as compute for cuda, with no issues, thanks to help from [X-Grok](www.x.com).
-- Produced via manually prompting AI back and forth with NotePadNext v0.12. AI used, Grok, X-Grok, DeepSeek, Claude.
+- Produced via manually prompting with NotePadNext v0.12, through use of, Grok, X-Grok, DeepSeek, Claude.
