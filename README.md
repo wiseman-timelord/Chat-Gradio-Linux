@@ -1,5 +1,5 @@
 # Chat-Linux-Gguf
-Status: Alpha - Still requires completion.
+Status: Alpha - Still requires completion of conversion.
 
 ### Description
 Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/wiseman-timelord/Chat-Gradio-Gguf) which runs on Windows. So, the plan for the differences are...
