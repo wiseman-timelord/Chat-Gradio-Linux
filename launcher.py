@@ -12,12 +12,41 @@ from scripts.interface import launch_interface
 print("Starting launcher"); time.sleep(1)
 
 def check_cuda_availability():
-    """Verify CUDA is available via nvidia-smi."""
+    """Verify CUDA is available and unified memory is supported."""
     try:
-        subprocess.check_output("nvidia-smi", shell=True)
+        # Check for nvidia-smi
+        nvidia_smi = subprocess.check_output("nvidia-smi", shell=True).decode()
+        if "NVIDIA-SMI" not in nvidia_smi:
+            print("NVIDIA driver not loaded"); time.sleep(3)
+            return False
+
+        # Check for CUDA toolkit
+        try:
+            cuda_version = subprocess.check_output("nvcc --version", shell=True).decode()
+            if "release" not in cuda_version:
+                print("CUDA toolkit missing"); time.sleep(3)
+                return False
+        except:
+            print("CUDA toolkit not found"); time.sleep(3)
+            return False
+
+        # Check binary supports unified memory
+        binary_path = Path("data/llama-cpp/main")
+        if not binary_path.exists():
+            print("Binary missing"); time.sleep(3)
+            return False
+
+        help_output = subprocess.check_output(f"{binary_path} --help", shell=True).decode()
+        if "unified" not in help_output.lower():
+            print("Unified memory not enabled in binary"); time.sleep(3)
+            return False
+
         return True
     except subprocess.CalledProcessError:
         print("CUDA unavailable"); time.sleep(3)
+        return False
+    except Exception as e:
+        print(f"CUDA check error: {str(e)}"); time.sleep(3)
         return False
 
 def main():
