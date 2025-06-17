@@ -7,5 +7,39 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The user must install cuda toolkit themselves.
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system memory. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
+### Development
+Details of file structure...
+- Core Project files...
+```
+project_root/
+│ Chat-Linux-Gguf.sh
+│ installer.py
+│ validater.py
+│ launcher.py
+├── media/
+│ └── project_banner.jpg
+├── scripts/
+│ └── interface.py
+│ └── models.py
+│ └── prompts.py
+│ └── settings.py
+│ └── temporary.py
+│ └── utlity.py
+```
+- Installed/Temporary files...
+```
+project_root/
+├── data/
+│ └── persistent.json
+├── data/vectors/
+└─────── *
+├── data/temp/
+└────── *
+├── data/history
+└────── *
+├── .venv/ (if we are still using this)
+└────── *
+```
+
 ### Notation
 - Ubuntu ChatBots now? In-short Ubuntu 24.10 has allows to install, "RX 470" as main with "1060 3GB" as compute for cuda, with no issues, thanks to help from [X-Grok](www.x.com).
