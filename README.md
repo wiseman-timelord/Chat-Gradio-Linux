@@ -12,7 +12,7 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - O.S. - Linux Only (Ubuntu ~24.10 recommended).
 - Python - Unknown min version (will be assessed after working version, but presumed 3.8+).
 - GPU Hardware - nVidia Only, CUDA 11+ with NVIDIA driver 450.80+, may be primary/secondary/compute GPU. 
-- Cuda Toolkit - You must install, Version [11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive) or [12.9](https://developer.nvidia.com/cuda-12-9-0-download-archive), yourself.
+- Cuda Toolkit - You must install, Version [11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive) or [12.9](https://developer.nvidia.com/cuda-12-9-0-download-archive), depending upon Cuda compatibility of card intend for processing.
 - R.A.M. - Models are stored in Unified Memory, and processes on the GPU. This method should cover most model cases.
 
 
