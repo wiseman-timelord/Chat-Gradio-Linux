@@ -40,7 +40,10 @@ llm = None
 SPEECH_ENABLED = False
 AUTO_SUMMARY = False
 CURRENT_SUMMARY = ""
-LLAMA_CPP_BINARY = "data/llama-cpp/main"  # Hardcoded path
+VRAM_MB = 0
+SYSTEM_RAM_MB = 0  # New: System RAM in MB
+DDR_LEVEL = "Unknown"  # New: DDR generation level
+LLAMA_CPP_BINARY = "data/llama-cpp/main"  # Constant
 
 # Arrays
 session_attached_files = []

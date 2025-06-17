@@ -50,6 +50,9 @@ def load_config():
         temporary.SELECTED_GPU = backend_config.get("selected_gpu", None)
         temporary.CUDA_VERSION = backend_config.get("cuda_version", "Unknown")
         temporary.COMPUTE_CAPABILITY = backend_config.get("compute_capability", "Unknown")
+        temporary.VRAM_MB = backend_config.get("vram_mb", 0)
+        
+        # Note: SYSTEM_RAM_MB and DDR_LEVEL are detected live and not loaded from config
     else:
         # Set defaults if JSON doesn't exist
         for key, value in DEFAULTS.items():
@@ -57,6 +60,9 @@ def load_config():
         temporary.SELECTED_GPU = None
         temporary.CUDA_VERSION = "Unknown"
         temporary.COMPUTE_CAPABILITY = "Unknown"
+        temporary.VRAM_MB = 0
+        temporary.SYSTEM_RAM_MB = 0  # Will be detected live
+        temporary.DDR_LEVEL = "Unknown"  # Will be detected live
     
     # Hardcode paths
     temporary.LLAMA_CPP_BINARY = "data/llama-cpp/main"
@@ -88,6 +94,9 @@ def save_config():
             "selected_gpu": temporary.SELECTED_GPU,
             "cuda_version": temporary.CUDA_VERSION,
             "compute_capability": temporary.COMPUTE_CAPABILITY,
+            "vram_mb": temporary.VRAM_MB,
+            # Note: We intentionally don't save SYSTEM_RAM_MB and DDR_LEVEL
+            # as they are system-dependent and should be detected live
         }
     }
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)

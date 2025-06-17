@@ -438,25 +438,37 @@ def launch_interface():
                                 label="Selected GPU",
                                 value=str(temporary.SELECTED_GPU),
                                 interactive=False,
-                                scale=3
+                                scale=2
                             ),
                             cuda_version=gr.Textbox(
                                 label="CUDA Version",
                                 value=temporary.CUDA_VERSION,
                                 interactive=False,
-                                scale=3
+                                scale=2
                             ),
                             compute_capability=gr.Textbox(
                                 label="Compute Capability",
                                 value=temporary.COMPUTE_CAPABILITY,
                                 interactive=False,
-                                scale=3
+                                scale=2
                             ),
-                            n_batch=gr.Textbox(
-                                label="Batch Size (n_batch)",
-                                value=str(temporary.BATCH_SIZE),
+                            vram_mb=gr.Textbox(
+                                label="VRAM (MB)",
+                                value=str(temporary.VRAM_MB),
                                 interactive=False,
-                                scale=3
+                                scale=2
+                            ),
+                            system_ram_mb=gr.Textbox(
+                                label="System RAM (MB)",
+                                value=str(temporary.SYSTEM_RAM_MB),
+                                interactive=False,
+                                scale=2
+                            ),
+                            ddr_level=gr.Textbox(
+                                label="DDR Level",
+                                value=temporary.DDR_LEVEL,
+                                interactive=False,
+                                scale=2
                             )
                         )
                     with gr.Row(elem_classes=["clean-elements"]):
