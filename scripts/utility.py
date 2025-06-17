@@ -75,10 +75,13 @@ def manage_session_history():
         print(f"Deleted oldest session: {oldest_file}")
 
 def web_search(query: str, num_results: int = 3) -> str:
+    """Perform a web search and return formatted results."""
     try:
         results = DuckDuckGoSearchAPIWrapper().results(query, num_results)
         if not results:
+            print("No search results found"); time.sleep(1)
             return "No results found."
+
         formatted = []
         links = []
         for result in results:
@@ -93,14 +96,18 @@ def web_search(query: str, num_results: int = 3) -> str:
                 article.parse()
                 summary = article.text[:500].strip()
                 formatted.append(f"[{domain}]({link}): {snippet}\n{summary}..." if summary else f"[{domain}]({link}): {snippet}")
-            except Exception:
+            except Exception as e:
                 formatted.append(f"[{domain}]({link}): {snippet}")
             links.append(link)
+
         if links:
             formatted.append("\n\nLinks:\n" + "\n".join([f"- {link}" for link in links]))
+
         return "\n\n".join(formatted)
     except Exception as e:
-        return f"Search error: {str(e)}"
+        error_msg = f"Search error: {str(e)[:60]}"
+        print(error_msg); time.sleep(1)
+        return error_msg
 
 def delete_all_session_histories():
     history_dir = Path(HISTORY_DIR)

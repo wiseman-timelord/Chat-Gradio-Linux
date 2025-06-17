@@ -54,14 +54,16 @@ def load_config():
         temporary.MAX_ATTACH_SLOTS = model_settings.get("max_attach_slots", DEFAULTS["MAX_ATTACH_SLOTS"])
         temporary.SESSION_LOG_HEIGHT = model_settings.get("session_log_height", DEFAULTS["SESSION_LOG_HEIGHT"])
         
-        # Load backend_config
+        # Load backend_config with validation
         backend_config = config.get("backend_config", {})
         temporary.SELECTED_GPU = backend_config.get("selected_gpu", None)
         temporary.CUDA_VERSION = backend_config.get("cuda_version", "Unknown")
         temporary.COMPUTE_CAPABILITY = backend_config.get("compute_capability", "Unknown")
         
+        if temporary.SELECTED_GPU is None:
+            print("Warning: No GPU selected in config"); time.sleep(1)
     else:
-        # Set defaults if JSON doesn’t exist
+        # Set defaults if JSON doesn't exist
         for key, value in DEFAULTS.items():
             setattr(temporary, key, value)
         temporary.SELECTED_GPU = None

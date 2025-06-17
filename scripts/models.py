@@ -82,30 +82,26 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
         from llama_cpp import Llama
     except ImportError:
         error_msg = "Error: llama-cpp-python not installed."
-        log_error(error_msg)
         return error_msg, False, llm_state, models_loaded_state
 
     try:
         if models_loaded_state:
             unload_models(llm_state, models_loaded_state)
 
-        # Set CUDA device
-        if temporary.SELECTED_GPU is not None:
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(temporary.SELECTED_GPU)
-        else:
-            error_msg = "Error: No GPU selected in configuration."
-            log_error(error_msg)
-            return error_msg, False, llm_state, models_loaded_state
+        # Set CUDA device with unified memory
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(temporary.SELECTED_GPU) if temporary.SELECTED_GPU is not None else "0"
 
         new_llm = Llama(
             model_path=str(model_path),
             n_ctx=temporary.CONTEXT_SIZE,
             n_batch=temporary.BATCH_SIZE,
+            n_gpu_layers=0,  # All layers in unified memory
+            main_gpu=temporary.SELECTED_GPU if temporary.SELECTED_GPU is not None else 0,
+            tensor_split=[temporary.SELECTED_GPU] if temporary.SELECTED_GPU is not None else [0],
             mmap=temporary.MMAP,
             mlock=temporary.MLOCK,
             verbose=True,
             chat_format=chat_format
-            # Unified memory enabled via compilation flag -DLLAMA_CUDA_UNIFIED_MEMORY=ON
         )
 
         # Test inference
@@ -114,14 +110,19 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
             max_tokens=temporary.BATCH_SIZE,
             stream=False
         )
-        print(f"Test inference successful: {test_output}")
 
         temporary.MODEL_NAME = model
-        status = f"Model '{model}' loaded with chat_format '{chat_format}' on GPU {temporary.SELECTED_GPU}."
+        status = f"Model '{model}' loaded with unified memory on GPU {temporary.SELECTED_GPU}."
         return status, True, new_llm, True
     except RuntimeError as e:
-        error_msg = f"CUDA error loading model: {str(e)}. Check VRAM (reduce n_batch) or CUDA setup."
-        rint(f"GPU error: {error_msg}"); time.sleep(3)
+        if "CUDA out of memory" in str(e):
+            suggestion = "Try reducing n_batch in Configuration"
+            error_msg = f"VRAM limit exceeded: {str(e)}. {suggestion}"
+        elif "CUDA" in str(e):
+            error_msg = f"CUDA error: {str(e)}. Check compute capability ({temporary.COMPUTE_CAPABILITY})"
+        else:
+            error_msg = f"Error loading model: {str(e)}"
+        print(f"Load error: {error_msg}"); time.sleep(3)
         return error_msg, False, None, False
     except Exception as e:
         error_msg = f"Error loading model: {str(e)}"
