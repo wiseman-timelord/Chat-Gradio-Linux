@@ -9,8 +9,9 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system memory. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
 ### Requirements
-- OS - Linux Only (Ubuntu ~24.10 recommended).
-- GPU - nVidia Only, CUDA 11+ compatible with NVIDIA driver 450.80+, may be primary/secondary/compute GPU. No VRAM requirement (as uses unified memory).
+- O.S. - Linux Only (Ubuntu ~24.10 recommended).
+- G.P.U. - nVidia Only, CUDA 11+ compatible with NVIDIA driver 450.80+, may be primary/secondary/compute GPU. 
+- R.A.M. - Models are stored in Unified Memory, and processes on the GPU. This method should cover most model cases.
 - Python - Unknown min version (will be assessed after working version, but presumed 3.8+).
 
 ### Development
