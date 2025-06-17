@@ -34,7 +34,7 @@ def get_model_metadata(model_path: str) -> dict:
         del model
         return metadata
     except Exception as e:
-        print(f"Metadata error: {str(e)}"); time.sleep(3)
+        print(f"Metadata error: {str(e)[:60]}"); time.sleep(1)
         return {}
 
 def get_available_models():
@@ -46,6 +46,17 @@ def get_available_models():
 
 def get_model_settings(model_name):
     """Determine model settings based on name keywords."""
+    if model_name in ["Select_a_model...", "No models found"]:
+        return {
+            "category": "chat",
+            "is_uncensored": False,
+            "is_reasoning": False,
+            "is_nsfw": False,
+            "is_code": False,
+            "is_roleplay": False,
+            "detected_keywords": []
+        }
+    
     model_name_lower = model_name.lower()
     is_uncensored = any(keyword in model_name_lower for keyword in temporary.handling_keywords["uncensored"])
     is_reasoning = any(keyword in model_name_lower for keyword in temporary.handling_keywords["reasoning"])
@@ -69,11 +80,11 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
     save_config()
 
     if model in ["Select_a_model...", "No models found"]:
-        return "Select a model to load.", False, llm_state, models_loaded_state
+        return "Select model first", False, llm_state, models_loaded_state
 
     model_path = Path(model_folder) / model
     if not model_path.exists():
-        return f"Error: Model file '{model_path}' not found.", False, llm_state, models_loaded_state
+        return "Model not found", False, llm_state, models_loaded_state
 
     metadata = get_model_metadata(str(model_path))
     chat_format = get_chat_format(metadata)
@@ -81,14 +92,13 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
     try:
         from llama_cpp import Llama
     except ImportError:
-        error_msg = "Error: llama-cpp-python not installed."
-        return error_msg, False, llm_state, models_loaded_state
+        return "llama-cpp missing", False, llm_state, models_loaded_state
 
     try:
         if models_loaded_state:
             unload_models(llm_state, models_loaded_state)
 
-        # Set CUDA device with unified memory
+        # Set CUDA device
         os.environ["CUDA_VISIBLE_DEVICES"] = str(temporary.SELECTED_GPU) if temporary.SELECTED_GPU is not None else "0"
 
         new_llm = Llama(
@@ -107,27 +117,18 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
         # Test inference
         test_output = new_llm.create_chat_completion(
             messages=[{"role": "user", "content": "Hello"}],
-            max_tokens=temporary.BATCH_SIZE,
+            max_tokens=32,
             stream=False
         )
 
         temporary.MODEL_NAME = model
-        status = f"Model '{model}' loaded with unified memory on GPU {temporary.SELECTED_GPU}."
-        return status, True, new_llm, True
+        return "Model loaded", True, new_llm, True
     except RuntimeError as e:
         if "CUDA out of memory" in str(e):
-            suggestion = "Try reducing n_batch in Configuration"
-            error_msg = f"VRAM limit exceeded: {str(e)}. {suggestion}"
-        elif "CUDA" in str(e):
-            error_msg = f"CUDA error: {str(e)}. Check compute capability ({temporary.COMPUTE_CAPABILITY})"
-        else:
-            error_msg = f"Error loading model: {str(e)}"
-        print(f"Load error: {error_msg}"); time.sleep(3)
-        return error_msg, False, None, False
+            return "VRAM exceeded", False, None, False
+        return f"CUDA error: {str(e)[:60]}", False, None, False
     except Exception as e:
-        error_msg = f"Error loading model: {str(e)}"
-        print(f"Load error: {error_msg}"); time.sleep(3)
-        return error_msg, False, None, False
+        return f"Load error: {str(e)[:60]}", False, None, False
 
 def unload_models(llm_state, models_loaded_state):
     """Unload the current model."""
@@ -135,8 +136,8 @@ def unload_models(llm_state, models_loaded_state):
     if models_loaded_state:
         del llm_state
         gc.collect()
-        return "Model unloaded successfully.", None, False
-    return "No model loaded to unload.", llm_state, models_loaded_state
+        return "Model unloaded", None, False
+    return "No model loaded", llm_state, models_loaded_state
 
 def get_response_stream(session_log, settings, web_search_enabled=False, search_results=None, cancel_event=None, llm_state=None, models_loaded_state=False):
     """Generate a response stream using the loaded model."""
@@ -169,27 +170,27 @@ def get_response_stream(session_log, settings, web_search_enabled=False, search_
     try:
         system_tokens = len(llm_state.tokenize(system_message.encode('utf-8')))
     except Exception as e:
-        error_msg = f"Error tokenizing system message: {str(e)}"
-        print(f"Stream error: {error_msg}"); time.sleep(3)
+        error_msg = f"Token error: {str(e)[:60]}"
+        print(error_msg); time.sleep(1)
         yield error_msg
         return
 
     if not session_log or len(session_log) < 2 or session_log[-2]['role'] != 'user':
-        yield "Error: No user input to process."
+        yield "Error: No user input"
         return
 
     user_query = session_log[-2]['content'].replace("User:\n", "", 1).strip()
     try:
         user_tokens = len(llm_state.tokenize(user_query.encode('utf-8')))
     except Exception as e:
-        error_msg = f"Error tokenizing user query: {str(e)}"
-        print(f"Stream error: {error_msg}"); time.sleep(3)
+        error_msg = f"Token error: {str(e)[:60]}"
+        print(error_msg); time.sleep(1)
         yield error_msg
         return
 
     available_tokens = n_ctx - system_tokens - user_tokens - (temporary.BATCH_SIZE // 8)
     if available_tokens < 0:
-        yield "Error: Context size exceeded. Reduce context_size or n_batch."
+        yield "Context size exceeded"
         return
 
     messages = [{"role": "system", "content": system_message}]
@@ -239,10 +240,13 @@ def get_response_stream(session_log, settings, web_search_enabled=False, search_
             content = re.sub(r'\n{2,}', '\n', content)
             yield content
     except RuntimeError as e:
-        error_msg = f"CUDA error during inference: {str(e)}. Try reducing n_batch."
-        print(f"Runtime error: {error_msg}"); time.sleep(3)
+        if "CUDA out of memory" in str(e):
+            error_msg = "VRAM exceeded"
+        else:
+            error_msg = f"CUDA error: {str(e)[:60]}"
+        print(error_msg); time.sleep(1)
         yield error_msg
     except Exception as e:
-        error_msg = f"Error generating response: {str(e)}"
-        print(f"Response error: {error_msg}"); time.sleep(3)
+        error_msg = f"Error: {str(e)[:60]}"
+        print(error_msg); time.sleep(1)
         yield error_msg

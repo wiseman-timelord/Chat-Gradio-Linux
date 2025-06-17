@@ -1,12 +1,11 @@
 # scripts/temporary.py
 
 import time
-from scripts.prompts import prompt_templates 
 
 # Configuration variables with defaults
 MODEL_FOLDER = "models"
 CONTEXT_SIZE = 8192
-BATCH_SIZE = 2048  # Set by installer based on VRAM
+BATCH_SIZE = 2048
 TEMPERATURE = 0.66
 REPEAT_PENALTY = 1.1
 MMAP = False
@@ -36,12 +35,12 @@ MODEL_NAME = "Select_a_model..."
 SELECTED_GPU = None
 CUDA_VERSION = "Unknown"
 COMPUTE_CAPABILITY = "Unknown"
-LLAMA_CPP_BINARY = "data/llama-cpp/main"
-DATA_DIR = None  # Set by launcher.py
+DATA_DIR = None
 llm = None
 SPEECH_ENABLED = False
 AUTO_SUMMARY = False
 CURRENT_SUMMARY = ""
+LLAMA_CPP_BINARY = "data/llama-cpp/main"  # Hardcoded path
 
 # Arrays
 session_attached_files = []
@@ -58,25 +57,20 @@ ALLOWED_EXTENSIONS = {"bat", "py", "sh", "txt", "json", "yaml"}
 MAX_POSSIBLE_HISTORY_SLOTS = 16
 MAX_POSSIBLE_ATTACH_SLOTS = 10
 
-# GPU constants
-SELECTED_GPU = None
-CUDA_VERSION = "Unknown"
-COMPUTE_CAPABILITY = "Unknown"
-
 # Status text entries
 STATUS_TEXTS = {
-    "model_loading": "Loading model...",
-    "model_loaded": "Model loaded successfully",
-    "model_unloading": "Unloading model...",
-    "model_unloaded": "Model unloaded successfully",
-    "vram_calc": "Calculating layers...",
-    "rag_process": "Analyzing documents...",
-    "session_restore": "Restoring session...",
+    "model_loading": "Loading model",
+    "model_loaded": "Model ready",
+    "model_unloading": "Unloading",
+    "model_unloaded": "Model unloaded",
+    "vram_calc": "Calculating layers",
+    "rag_process": "Analyzing docs",
+    "session_restore": "Restoring session",
     "config_saved": "Settings saved",
-    "docs_processed": "Documents ready",
-    "generating_response": "Generating response...",
-    "response_generated": "Response generated",
-    "error": "An error occurred"
+    "docs_processed": "Docs ready",
+    "generating_response": "Generating",
+    "response_generated": "Response ready",
+    "error": "Error occurred"
 }
 
 CHAT_FORMAT_MAP = {

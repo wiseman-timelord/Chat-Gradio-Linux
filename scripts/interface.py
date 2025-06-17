@@ -9,13 +9,11 @@ import asyncio
 import queue
 import threading
 import time
+import random
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name
-from pygments.formatters import HtmlFormatter
 import scripts.temporary as temporary
 import scripts.settings as settings
 from scripts.settings import save_config
@@ -430,152 +428,152 @@ def launch_interface():
                     exit_button.click(fn=shutdown_program, inputs=[states["llm"], states["models_loaded"]])
 
             with gr.Tab("Configuration"):
-                            with gr.Column(scale=1, elem_classes=["clean-elements"]):
-                                config_components = {}
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    gr.Markdown("Hardware Information...")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    config_components.update(
-                                        selected_gpu=gr.Textbox(
-                                            label="Selected GPU",
-                                            value=str(temporary.SELECTED_GPU),
-                                            interactive=False,
-                                            scale=3
-                                        ),
-                                        cuda_version=gr.Textbox(
-                                            label="CUDA Version",
-                                            value=temporary.CUDA_VERSION,
-                                            interactive=False,
-                                            scale=3
-                                        ),
-                                        compute_capability=gr.Textbox(
-                                            label="Compute Capability",
-                                            value=temporary.COMPUTE_CAPABILITY,
-                                            interactive=False,
-                                            scale=3
-                                        ),
-                                        n_batch=gr.Textbox(  # Added to display VRAM-based batch size
-                                            label="Batch Size (n_batch)",
-                                            value=str(temporary.BATCH_SIZE),
-                                            interactive=False,
-                                            scale=3
-                                        )
-                                    )
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    gr.Markdown("Model Options...")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    model_path_display = gr.Textbox(
-                                        label="Model Folder",
-                                        value=temporary.MODEL_FOLDER,
-                                        interactive=False,
-                                        scale=10
-                                    )
-                                    available_models = temporary.AVAILABLE_MODELS or get_available_models()
-                                    base_choices = ["Select_a_model..."]
-                                    if available_models != ["Select_a_model..."]:
-                                        available_models = base_choices + [m for m in available_models if m not in base_choices]
-                                    else:
-                                        available_models = base_choices
-                                    default_model = (
-                                        temporary.MODEL_NAME
-                                        if temporary.MODEL_NAME in available_models and temporary.MODEL_NAME not in base_choices
-                                        else (available_models[1] if len(available_models) > 1 else "Select_a_model...")
-                                    )
-                                    config_components["model"] = gr.Dropdown(
-                                        choices=available_models,
-                                        label="Select Model File",
-                                        value=default_model,
-                                        allow_custom_value=False,
-                                        scale=10
-                                    )
-                                    keywords_display = gr.Textbox(
-                                        label="Keywords Detected",
-                                        interactive=False,
-                                        value="",
-                                        scale=10
-                                    )
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    config_components.update(
-                                        ctx=gr.Dropdown(
-                                            choices=temporary.CTX_OPTIONS,
-                                            label="Context Size",
-                                            value=temporary.CONTEXT_SIZE,
-                                            scale=5
-                                        ),
-                                        batch=gr.Dropdown(  # Still editable, as users may want to adjust based on VRAM
-                                            choices=temporary.BATCH_OPTIONS,
-                                            label="Batch Size",
-                                            value=temporary.BATCH_SIZE,
-                                            scale=5
-                                        ),
-                                        temp=gr.Dropdown(
-                                            choices=temporary.TEMP_OPTIONS,
-                                            label="Temperature",
-                                            value=temporary.TEMPERATURE,
-                                            scale=5
-                                        ),
-                                        repeat=gr.Dropdown(
-                                            choices=temporary.REPEAT_OPTIONS,
-                                            label="Repeat Penalty",
-                                            value=temporary.REPEAT_PENALTY,
-                                            scale=5
-                                        )
-                                    )
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    browse_button = gr.Button("Browse Folder", variant="secondary")
-                                    config_components.update(
-                                        load_models=gr.Button("Load Model", variant="secondary"),
-                                        unload=gr.Button("Unload Model", variant="primary")
-                                    )
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    gr.Markdown("Program Options...")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    custom_components = {
-                                        "max_history_slots": gr.Dropdown(
-                                            choices=temporary.HISTORY_SLOT_OPTIONS,
-                                            label="Max History Slots",
-                                            value=temporary.MAX_HISTORY_SLOTS,
-                                            scale=5
-                                        ),
-                                        "session_log_height": gr.Dropdown(
-                                            choices=temporary.SESSION_LOG_HEIGHT_OPTIONS,
-                                            label="Session Log Height",
-                                            value=temporary.SESSION_LOG_HEIGHT,
-                                            scale=5
-                                        ),
-                                        "max_attach_slots": gr.Dropdown(
-                                            choices=temporary.ATTACH_SLOT_OPTIONS,
-                                            label="Max Attach Slots",
-                                            value=temporary.MAX_ATTACH_SLOTS,
-                                            scale=5
-                                        )
-                                    }
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    gr.Markdown("Critical Actions...")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    config_components["save_settings"] = gr.Button("Save Settings", variant="primary")
-                                    custom_components["delete_all_history"] = gr.Button("Delete All History", variant="stop")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    gr.Markdown("About Program...")
-                                    gr.Markdown("[Chat-Linux-Gguf](https://github.com/wiseman-timelord/Chat-Linux-Gguf) by [Wiseman-Timelord](https://github.com/wiseman-timelord).")
-                                with gr.Row(elem_classes=["clean-elements"]):
-                                    config_components.update(
-                                        status_settings=gr.Textbox(
-                                            label="Status",
-                                            interactive=False,
-                                            value="Select model on Configuration page. Check terminal for issues.",
-                                            scale=20
-                                        ),
-                                        shutdown=gr.Button(
-                                            "Exit",
-                                            variant="stop",
-                                            elem_classes=["double-height"],
-                                            min_width=110
-                                        ).click(
-                                            fn=shutdown_program,
-                                            inputs=[states["llm"], states["models_loaded"]]
-                                        )
-                                    )
+                with gr.Column(scale=1, elem_classes=["clean-elements"]):
+                    config_components = {}
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        gr.Markdown("Hardware Information...")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        config_components.update(
+                            selected_gpu=gr.Textbox(
+                                label="Selected GPU",
+                                value=str(temporary.SELECTED_GPU),
+                                interactive=False,
+                                scale=3
+                            ),
+                            cuda_version=gr.Textbox(
+                                label="CUDA Version",
+                                value=temporary.CUDA_VERSION,
+                                interactive=False,
+                                scale=3
+                            ),
+                            compute_capability=gr.Textbox(
+                                label="Compute Capability",
+                                value=temporary.COMPUTE_CAPABILITY,
+                                interactive=False,
+                                scale=3
+                            ),
+                            n_batch=gr.Textbox(
+                                label="Batch Size (n_batch)",
+                                value=str(temporary.BATCH_SIZE),
+                                interactive=False,
+                                scale=3
+                            )
+                        )
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        gr.Markdown("Model Options...")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        model_path_display = gr.Textbox(
+                            label="Model Folder",
+                            value=temporary.MODEL_FOLDER,
+                            interactive=False,
+                            scale=10
+                        )
+                        available_models = temporary.AVAILABLE_MODELS or get_available_models()
+                        base_choices = ["Select_a_model..."]
+                        if available_models != ["Select_a_model..."]:
+                            available_models = base_choices + [m for m in available_models if m not in base_choices]
+                        else:
+                            available_models = base_choices
+                        default_model = (
+                            temporary.MODEL_NAME
+                            if temporary.MODEL_NAME in available_models and temporary.MODEL_NAME not in base_choices
+                            else (available_models[1] if len(available_models) > 1 else "Select_a_model...")
+                        )
+                        config_components["model"] = gr.Dropdown(
+                            choices=available_models,
+                            label="Select Model File",
+                            value=default_model,
+                            allow_custom_value=False,
+                            scale=10
+                        )
+                        keywords_display = gr.Textbox(
+                            label="Keywords Detected",
+                            interactive=False,
+                            value="",
+                            scale=10
+                        )
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        config_components.update(
+                            ctx=gr.Dropdown(
+                                choices=temporary.CTX_OPTIONS,
+                                label="Context Size",
+                                value=temporary.CONTEXT_SIZE,
+                                scale=5
+                            ),
+                            batch=gr.Dropdown(
+                                choices=temporary.BATCH_OPTIONS,
+                                label="Batch Size",
+                                value=temporary.BATCH_SIZE,
+                                scale=5
+                            ),
+                            temp=gr.Dropdown(
+                                choices=temporary.TEMP_OPTIONS,
+                                label="Temperature",
+                                value=temporary.TEMPERATURE,
+                                scale=5
+                            ),
+                            repeat=gr.Dropdown(
+                                choices=temporary.REPEAT_OPTIONS,
+                                label="Repeat Penalty",
+                                value=temporary.REPEAT_PENALTY,
+                                scale=5
+                            )
+                        )
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        browse_button = gr.Button("Browse Folder", variant="secondary")
+                        config_components.update(
+                            load_models=gr.Button("Load Model", variant="secondary"),
+                            unload=gr.Button("Unload Model", variant="primary")
+                        )
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        gr.Markdown("Program Options...")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        custom_components = {
+                            "max_history_slots": gr.Dropdown(
+                                choices=temporary.HISTORY_SLOT_OPTIONS,
+                                label="Max History Slots",
+                                value=temporary.MAX_HISTORY_SLOTS,
+                                scale=5
+                            ),
+                            "session_log_height": gr.Dropdown(
+                                choices=temporary.SESSION_LOG_HEIGHT_OPTIONS,
+                                label="Session Log Height",
+                                value=temporary.SESSION_LOG_HEIGHT,
+                                scale=5
+                            ),
+                            "max_attach_slots": gr.Dropdown(
+                                choices=temporary.ATTACH_SLOT_OPTIONS,
+                                label="Max Attach Slots",
+                                value=temporary.MAX_ATTACH_SLOTS,
+                                scale=5
+                            )
+                        }
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        gr.Markdown("Critical Actions...")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        config_components["save_settings"] = gr.Button("Save Settings", variant="primary")
+                        custom_components["delete_all_history"] = gr.Button("Delete All History", variant="stop")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        gr.Markdown("About Program...")
+                        gr.Markdown("[Chat-Linux-Gguf](https://github.com/wiseman-timelord/Chat-Linux-Gguf) by [Wiseman-Timelord](https://github.com/wiseman-timelord).")
+                    with gr.Row(elem_classes=["clean-elements"]):
+                        config_components.update(
+                            status_settings=gr.Textbox(
+                                label="Status",
+                                interactive=False,
+                                value="Select model on Configuration page. Check terminal for issues.",
+                                scale=20
+                            ),
+                            shutdown=gr.Button(
+                                "Exit",
+                                variant="stop",
+                                elem_classes=["double-height"],
+                                min_width=110
+                            ).click(
+                                fn=shutdown_program,
+                                inputs=[states["llm"], states["models_loaded"]]
+                            )
+                        )
 
         def handle_edit_previous(session_log):
             if len(session_log) < 2:
