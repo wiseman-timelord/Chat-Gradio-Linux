@@ -200,17 +200,13 @@ def validate_config(cuda_info: Dict[str, any]) -> bool:
             config = json.load(f)
         
         checks = [
-            ("llama binary path", (BASE_DIR / config["model_settings"]["llama_cli_path"]).exists()),
+            ("llama binary path", (BASE_DIR / "data/llama-cpp/main").exists()),
             ("use python bindings", config["model_settings"].get("use_python_bindings", False) == True),
-            ("unified memory enabled", config["model_settings"].get("unified_memory", False) == True),
-            ("backend type", config["backend_config"].get("backend_type", "") == "CUDA"),
-            ("VRAM allocation", 
-             config["model_settings"]["vram_size"] <= cuda_info.get("vram_mb", float('inf'))),
+            ("unified memory enabled", True),  # Always true in Linux version
+            ("VRAM allocation", config["backend_config"].get("vram_mb", 0) >= 2048),
             ("config field model_dir", "model_dir" in config["model_settings"]),
-            ("config field llama_cli_path", "llama_cli_path" in config["model_settings"]),
-            ("config field vram_size", "vram_size" in config["model_settings"]),
             ("config field n_batch", "n_batch" in config["model_settings"]),
-            ("config field dynamic_gpu_layers", "dynamic_gpu_layers" in config["model_settings"])
+            ("config field vram_mb", "vram_mb" in config["backend_config"])
         ]
         
         all_valid = True

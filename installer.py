@@ -409,7 +409,7 @@ def setup_python_env(cuda_version: str, arch_string: str) -> bool:
 
 def create_config(system_info: Dict[str, any]) -> None:
     """Generate config file"""
-    log_message("Creating config...")
+    print_status("Creating config...", None)
     time.sleep(1)
     gpu = next(g for g in system_info["gpus"] if g["index"] == system_info["selected_gpu"])
     vram_mb = gpu["vram"]
@@ -421,9 +421,11 @@ def create_config(system_info: Dict[str, any]) -> None:
         n_batch = 2048
     else:
         n_batch = 1024
+
     for dir_path in [BASE_DIR / "data", BASE_DIR / "data" / "temp", 
                      BASE_DIR / "data" / "history", BASE_DIR / "data" / "vectors"]:
         dir_path.mkdir(parents=True, exist_ok=True)
+
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         f.write(CONFIG_TEMPLATE % (
@@ -431,17 +433,20 @@ def create_config(system_info: Dict[str, any]) -> None:
             json.dumps(system_info["gpus"]),
             system_info["selected_gpu"],
             system_info["cuda_version"],
-            gpu["compute_capability"]
+            gpu["compute_capability"],
+            vram_mb
         ))
+
     if not CONFIG_PATH.exists():
-        log_message("Config creation failed", "ERROR")
+        print_status("Config creation failed", False)
         time.sleep(3)
         raise InstallerError("Config creation failed")
+
     try:
         with open(CONFIG_PATH, "r") as f:
             json.load(f)
     except json.JSONDecodeError:
-        log_message("Invalid JSON config", "ERROR")
+        print_status("Invalid JSON config", False)
         time.sleep(3)
         raise InstallerError("Invalid JSON config")
     time.sleep(1)

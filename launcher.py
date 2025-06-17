@@ -33,6 +33,20 @@ def check_cuda_availability():
             print("CUDA toolkit not found"); time.sleep(1)
             return False
 
+        # Check VRAM
+        try:
+            smi_output = subprocess.check_output(
+                "nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits", 
+                shell=True
+            ).decode().strip()
+            vram_mb = int(smi_output.split('\n')[0]) if smi_output else 0
+            if vram_mb < 2048:
+                print(f"Insufficient VRAM: {vram_mb}MB"); time.sleep(3)
+                return False
+        except Exception as e:
+            print(f"VRAM check failed: {str(e)[:60]}"); time.sleep(1)
+            return False
+
         # Check binary supports unified memory
         binary_path = Path("data/llama-cpp/main")
         if not binary_path.exists():
@@ -69,6 +83,44 @@ def main():
         if not check_cuda_availability():
             print("CUDA not detected"); time.sleep(1)
             raise RuntimeError("CUDA unavailable")
+        
+        # Detect system RAM and DDR level
+        try:
+            # Get total system RAM from /proc/meminfo
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if line.startswith('MemTotal:'):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            temporary.SYSTEM_RAM_MB = int(parts[1]) // 1024
+                            print(f"Detected RAM: {temporary.SYSTEM_RAM_MB}MB"); time.sleep(1)
+                        break
+            
+            # Get DDR level from dmidecode (requires sudo access)
+            try:
+                output = subprocess.check_output("sudo dmidecode --type memory", shell=True).decode()
+                if "DDR" in output:
+                    ddr_match = re.search(r'DDR(\d)', output)
+                    if ddr_match:
+                        temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
+                        print(f"Detected DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
+            except Exception as e:
+                print(f"dmidecode failed: {str(e)[:60]}"); time.sleep(1)
+                # Fallback to lshw if dmidecode fails
+                try:
+                    output = subprocess.check_output("lshw -class memory", shell=True).decode()
+                    if "DDR" in output:
+                        ddr_match = re.search(r'DDR(\d)', output)
+                        if ddr_match:
+                            temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
+                            print(f"Detected DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
+                except Exception as e:
+                    print(f"lshw failed: {str(e)[:60]}"); time.sleep(1)
+                    temporary.DDR_LEVEL = "Unknown"
+        except Exception as e:
+            print(f"RAM detection error: {str(e)[:60]}"); time.sleep(1)
+            temporary.SYSTEM_RAM_MB = 0
+            temporary.DDR_LEVEL = "Unknown"
         
         print("Loading config"); time.sleep(1)
         config_status = load_config()
