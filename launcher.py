@@ -4,7 +4,6 @@ import os
 import time
 from pathlib import Path
 import subprocess
-from datetime import datetime
 import scripts.temporary as temporary
 from scripts.settings import load_config
 from scripts.interface import launch_interface
@@ -14,39 +13,40 @@ print("Starting launcher"); time.sleep(1)
 def check_cuda_availability():
     """Verify CUDA is available and unified memory is supported."""
     try:
-        # Check for nvidia-smi
-        nvidia_smi = subprocess.check_output("nvidia-smi", shell=True).decode()
-        if "NVIDIA-SMI" not in nvidia_smi:
-            print("NVIDIA driver not loaded"); time.sleep(3)
+        # Check NVIDIA driver
+        try:
+            nvidia_smi = subprocess.check_output("nvidia-smi", shell=True).decode()
+            if "NVIDIA-SMI" not in nvidia_smi:
+                print("NVIDIA driver not loaded"); time.sleep(1)
+                return False
+        except:
+            print("NVIDIA driver not found"); time.sleep(1)
             return False
 
-        # Check for CUDA toolkit
+        # Check CUDA toolkit
         try:
             cuda_version = subprocess.check_output("nvcc --version", shell=True).decode()
             if "release" not in cuda_version:
-                print("CUDA toolkit missing"); time.sleep(3)
+                print("CUDA toolkit missing"); time.sleep(1)
                 return False
         except:
-            print("CUDA toolkit not found"); time.sleep(3)
+            print("CUDA toolkit not found"); time.sleep(1)
             return False
 
         # Check binary supports unified memory
         binary_path = Path("data/llama-cpp/main")
         if not binary_path.exists():
-            print("Binary missing"); time.sleep(3)
+            print("Binary missing"); time.sleep(1)
             return False
 
         help_output = subprocess.check_output(f"{binary_path} --help", shell=True).decode()
         if "unified" not in help_output.lower():
-            print("Unified memory not enabled in binary"); time.sleep(3)
+            print("Unified memory not enabled"); time.sleep(1)
             return False
 
         return True
-    except subprocess.CalledProcessError:
-        print("CUDA unavailable"); time.sleep(3)
-        return False
     except Exception as e:
-        print(f"CUDA check error: {str(e)}"); time.sleep(3)
+        print(f"CUDA check error: {str(e)[:60]}"); time.sleep(1)
         return False
 
 def main():
@@ -63,11 +63,11 @@ def main():
         # Pre-flight checks
         binary_path = Path("data/llama-cpp/main")
         if not binary_path.exists():
-            print("Binary missing"); time.sleep(3)
+            print("Binary missing"); time.sleep(1)
             raise FileNotFoundError("llama.cpp binary not found")
         
         if not check_cuda_availability():
-            print("CUDA not detected"); time.sleep(3)
+            print("CUDA not detected"); time.sleep(1)
             raise RuntimeError("CUDA unavailable")
         
         print("Loading config"); time.sleep(1)
@@ -78,10 +78,10 @@ def main():
         try:
             launch_interface()
         except Exception as e:
-            print("Interface launch failed"); time.sleep(3)
+            print("Interface failed"); time.sleep(1)
             raise
     except Exception as e:
-        print("Launcher error"); time.sleep(3)
+        print(f"Launcher error: {str(e)[:60]}"); time.sleep(1)
         raise
 
 if __name__ == "__main__":
