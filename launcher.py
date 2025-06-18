@@ -63,6 +63,39 @@ def check_cuda_availability():
         print(f"CUDA check error: {str(e)[:60]}"); time.sleep(1)
         return False
 
+def detect_hardware():
+    """Detect system RAM and DDR level"""
+    try:
+        # Get total system RAM from /proc/meminfo
+        with open('/proc/meminfo', 'r') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        temporary.SYSTEM_RAM_MB = int(parts[1]) // 1024
+                        print(f"RAM: {temporary.SYSTEM_RAM_MB}MB"); time.sleep(1)
+                    break
+        
+        # Get DDR level from dmidecode (requires sudo access)
+        try:
+            output = subprocess.check_output(
+                "sudo dmidecode --type memory | grep 'Type:'", 
+                shell=True,
+                stderr=subprocess.DEVNULL
+            ).decode()
+            if "DDR" in output:
+                ddr_match = re.search(r'DDR(\d)', output)
+                if ddr_match:
+                    temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
+                    print(f"DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
+        except:
+            temporary.DDR_LEVEL = "Unknown"
+            print("DDR: Unknown"); time.sleep(1)
+    except Exception as e:
+        print(f"Hardware detect: {str(e)[:60]}"); time.sleep(1)
+        temporary.SYSTEM_RAM_MB = 0
+        temporary.DDR_LEVEL = "Unknown"
+
 def main():
     try:
         print("Launcher initializing"); time.sleep(1)
@@ -74,6 +107,9 @@ def main():
         Path(temporary.DATA_DIR).mkdir(parents=True, exist_ok=True)
         Path(temporary.HISTORY_DIR).mkdir(parents=True, exist_ok=True)
         
+        # Hardware detection
+        detect_hardware()
+        
         # Pre-flight checks
         binary_path = Path("data/llama-cpp/main")
         if not binary_path.exists():
@@ -83,44 +119,6 @@ def main():
         if not check_cuda_availability():
             print("CUDA not detected"); time.sleep(1)
             raise RuntimeError("CUDA unavailable")
-        
-        # Detect system RAM and DDR level
-        try:
-            # Get total system RAM from /proc/meminfo
-            with open('/proc/meminfo', 'r') as f:
-                for line in f:
-                    if line.startswith('MemTotal:'):
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            temporary.SYSTEM_RAM_MB = int(parts[1]) // 1024
-                            print(f"Detected RAM: {temporary.SYSTEM_RAM_MB}MB"); time.sleep(1)
-                        break
-            
-            # Get DDR level from dmidecode (requires sudo access)
-            try:
-                output = subprocess.check_output("sudo dmidecode --type memory", shell=True).decode()
-                if "DDR" in output:
-                    ddr_match = re.search(r'DDR(\d)', output)
-                    if ddr_match:
-                        temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
-                        print(f"Detected DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
-            except Exception as e:
-                print(f"dmidecode failed: {str(e)[:60]}"); time.sleep(1)
-                # Fallback to lshw if dmidecode fails
-                try:
-                    output = subprocess.check_output("lshw -class memory", shell=True).decode()
-                    if "DDR" in output:
-                        ddr_match = re.search(r'DDR(\d)', output)
-                        if ddr_match:
-                            temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
-                            print(f"Detected DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
-                except Exception as e:
-                    print(f"lshw failed: {str(e)[:60]}"); time.sleep(1)
-                    temporary.DDR_LEVEL = "Unknown"
-        except Exception as e:
-            print(f"RAM detection error: {str(e)[:60]}"); time.sleep(1)
-            temporary.SYSTEM_RAM_MB = 0
-            temporary.DDR_LEVEL = "Unknown"
         
         print("Loading config"); time.sleep(1)
         config_status = load_config()

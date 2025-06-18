@@ -142,31 +142,43 @@ def check_cuda_compatibility(cuda_version: str, gpus: List[Dict[str, any]]) -> b
     return True
 
 def select_gpu(gpus: List[Dict[str, any]]) -> int:
-    """Choose GPU"""
+    """Choose GPU with unified memory support"""
     log_message("Detected GPUs:")
     for gpu in gpus:
         unified = "✓UM" if gpu["unified_memory_capable"] else "✗UM"
-        log_message(f"[{gpu['index']}] {gpu['name']} {unified}")
+        log_message(f"[{gpu['index']}] {gpu['name']} {unified} VRAM: {gpu['vram']}MB")
     time.sleep(1)
-    while True:
-        try:
-            if sys.stdin.isatty():
-                choice = input("Select GPU (default 0): ").strip()
+    
+    suitable_gpus = [g for g in gpus if g["unified_memory_capable"] and g["vram"] >= MIN_VRAM]
+    if not suitable_gpus:
+        log_message("No suitable GPUs", "ERROR")
+        time.sleep(3)
+        raise InstallerError("No GPUs with unified memory support")
+    
+    if len(suitable_gpus) == 1:
+        log_message(f"Auto-selected GPU: {suitable_gpus[0]['index']}")
+        time.sleep(1)
+        return suitable_gpus[0]['index']
+    
+    if sys.stdin.isatty():
+        while True:
+            try:
+                choice = input(f"Select GPU (0-{len(gpus)-1}, default 0): ").strip()
                 choice = int(choice) if choice else 0
-                if any(gpu['index'] == choice for gpu in gpus):
+                if any(g['index'] == choice for g in suitable_gpus):
                     log_message(f"Selected GPU: {choice}")
                     time.sleep(1)
                     return choice
-                log_message(f"Invalid index: {choice}", "ERROR")
+                log_message(f"Invalid GPU index: {choice}", "ERROR")
                 time.sleep(3)
-            else:
-                best_gpu = max(gpus, key=lambda x: x["vram"])
-                log_message(f"Selected GPU: {best_gpu['index']}")
-                time.sleep(1)
-                return best_gpu['index']
-        except ValueError:
-            log_message("Invalid input", "ERROR")
-            time.sleep(3)
+            except ValueError:
+                log_message("Invalid input", "ERROR")
+                time.sleep(3)
+    else:
+        best_gpu = max(suitable_gpus, key=lambda x: x["vram"])
+        log_message(f"Auto-selected GPU: {best_gpu['index']}")
+        time.sleep(1)
+        return best_gpu['index']
 
 def check_system() -> Tuple[bool, Dict[str, any]]:
     """Check system requirements"""
