@@ -99,9 +99,8 @@ def load_models(model_folder, model, llm_state, models_loaded_state):
             model_path=str(model_path),
             n_ctx=temporary.CONTEXT_SIZE,
             n_batch=temporary.BATCH_SIZE,
-            n_gpu_layers=0,  # All layers in unified memory
+            n_gpu_layers=-1,  # All layers in unified memory
             main_gpu=temporary.SELECTED_GPU if temporary.SELECTED_GPU is not None else 0,
-            tensor_split=[temporary.SELECTED_GPU] if temporary.SELECTED_GPU is not None else [0],
             mmap=temporary.MMAP,
             mlock=temporary.MLOCK,
             verbose=True,
