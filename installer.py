@@ -27,6 +27,25 @@ MIN_DRIVER_VERSION = 450.80
 MIN_VRAM = 2048  # 2GB VRAM
 MIN_COMPUTE_CAPABILITY = 6.0
 
+# GCC compatibility mapping for CUDA versions
+CUDA_GCC_COMPATIBILITY = {
+    "11.0": 8,
+    "11.1": 10,
+    "11.2": 10,
+    "11.3": 10,
+    "11.4": 10,
+    "11.5": 10,
+    "11.6": 10,
+    "11.7": 10,
+    "11.8": 11,
+    "12.0": 11,
+    "12.1": 12,
+    "12.2": 12,
+    "12.3": 12,
+    "12.4": 12,
+    "12.5": 12,
+}
+
 REQUIREMENTS = [
     "gradio>=4.25.0",
     "requests==2.31.0",
@@ -71,8 +90,9 @@ def log_message(message: str, level: str = "INFO") -> None:
     """Log message"""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {level}: {message}")
+    sys.stdout.flush()
 
-def run_command(cmd: list, cwd: Optional[Path] = None, timeout: int = 300, 
+def run_command(cmd: list, cwd: Optional[Path] = None, timeout: int = 600, 
                 env: Optional[Dict[str, str]] = None) -> Tuple[bool, str]:
     """Execute command"""
     try:
@@ -91,6 +111,15 @@ def run_command(cmd: list, cwd: Optional[Path] = None, timeout: int = 300,
         return False, e.stdout
     except subprocess.TimeoutExpired:
         return False, f"Timeout after {timeout}s"
+
+def check_sudo_available() -> bool:
+    """Check if sudo is available"""
+    try:
+        result = subprocess.run(["sudo", "-n", "true"], 
+                              capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
 
 def get_cuda_compute_capabilities() -> List[str]:
     """Fetch GPU capabilities"""
@@ -118,7 +147,7 @@ def get_cuda_architecture_flags() -> Tuple[List[str], str]:
     arch_string = ";".join(architectures) if architectures else "60;61;70;75;80;86;89;90"
     log_message(f"Detected architectures: {arch_string}")
     time.sleep(1)
-    return [f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string
+    return [f"-CMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string
 
 def check_unified_memory_support(compute_cap: str) -> bool:
     """Verify memory support"""
@@ -160,25 +189,10 @@ def select_gpu(gpus: List[Dict[str, any]]) -> int:
         time.sleep(1)
         return suitable_gpus[0]['index']
     
-    if sys.stdin.isatty():
-        while True:
-            try:
-                choice = input(f"Select GPU (0-{len(gpus)-1}, default 0): ").strip()
-                choice = int(choice) if choice else 0
-                if any(g['index'] == choice for g in suitable_gpus):
-                    log_message(f"Selected GPU: {choice}")
-                    time.sleep(1)
-                    return choice
-                log_message(f"Invalid GPU index: {choice}", "ERROR")
-                time.sleep(3)
-            except ValueError:
-                log_message("Invalid input", "ERROR")
-                time.sleep(3)
-    else:
-        best_gpu = max(suitable_gpus, key=lambda x: x["vram"])
-        log_message(f"Auto-selected GPU: {best_gpu['index']}")
-        time.sleep(1)
-        return best_gpu['index']
+    best_gpu = max(suitable_gpus, key=lambda x: x["vram"])
+    log_message(f"Auto-selected GPU: {best_gpu['index']}")
+    time.sleep(1)
+    return best_gpu['index']
 
 def check_system() -> Tuple[bool, Dict[str, any]]:
     """Check system requirements"""
@@ -285,65 +299,386 @@ def check_system() -> Tuple[bool, Dict[str, any]]:
     system_info["selected_gpu"] = select_gpu(suitable_gpus)
     return True, system_info
 
-def install_system_deps() -> bool:
-    """Install dependencies"""
-    log_message("Installing dependencies...")
+def configure_cuda_compilers(cuda_version: str) -> Tuple[Dict[str, str], str]:
+    """Configure compatible GCC compiler for CUDA"""
+    log_message("Checking compiler compatibility")
     time.sleep(1)
-    deps = [
-        "git", "cmake", "build-essential", "pkg-config",
-        "libssl-dev", "zlib1g-dev", "libbz2-dev",
-        "libreadline-dev", "libsqlite3-dev", "wget",
-        "curl", "llvm", "libncurses5-dev", "xz-utils",
-        "tk-dev", "libxml2-dev", "libxmlsec1-dev",
-        "libffi-dev", "liblzma-dev", "python3-dev"
+    
+    max_gcc = CUDA_GCC_COMPATIBILITY.get(cuda_version, 9)
+    log_message(f"CUDA {cuda_version} max gcc: {max_gcc}")
+    time.sleep(1)
+    
+    gcc_path = f"/usr/bin/gcc-{max_gcc}"
+    gxx_path = f"/usr/bin/g++-{max_gcc}"
+    
+    env = os.environ.copy()
+    
+    # Try to use the specific GCC version if available
+    if os.path.exists(gcc_path) and os.path.exists(gxx_path):
+        log_message(f"Using gcc-{max_gcc}")
+        time.sleep(1)
+        # Verify GCC version for debugging
+        try:
+            gcc_version_output = subprocess.check_output([gcc_path, "--version"], text=True, timeout=10)
+            version_line = gcc_version_output.splitlines()[0]
+            log_message(f"Compiler: {version_line}")
+            time.sleep(1)
+        except Exception as e:
+            log_message(f"GCC version check failed: {e}", "WARNING")
+            time.sleep(1)
+        env["CC"] = gcc_path
+        env["CXX"] = gxx_path
+        return env, gcc_path
+    
+    # Fall back to system GCC
+    log_message(f"gcc-{max_gcc} not found, checking system GCC", "WARNING")
+    time.sleep(1)
+    
+    try:
+        gcc_output = subprocess.check_output(["gcc", "--version"], text=True, timeout=10)
+        gcc_match = re.search(r"gcc \(.*\) (\d+)\.(\d+)", gcc_output)
+        
+        if gcc_match:
+            system_gcc_major = int(gcc_match.group(1))
+            log_message(f"System GCC version: {system_gcc_major}")
+            time.sleep(1)
+            
+            if system_gcc_major <= max_gcc:
+                log_message(f"Using system gcc-{system_gcc_major}")
+                time.sleep(1)
+                system_gcc = shutil.which("gcc")
+                system_gxx = shutil.which("g++")
+                if system_gcc and system_gxx:
+                    env["CC"] = system_gcc
+                    env["CXX"] = system_gxx
+                return env, system_gcc
+            else:
+                log_message(f"System gcc-{system_gcc_major} too new for CUDA {cuda_version}", "WARNING")
+                log_message("CUDA compilation may fail", "WARNING")
+                time.sleep(1)
+                system_gcc = shutil.which("gcc")
+                system_gxx = shutil.which("g++")
+                if system_gcc and system_gxx:
+                    env["CC"] = system_gcc
+                    env["CXX"] = system_gxx
+                return env, system_gcc
+        else:
+            log_message("Could not determine GCC version", "WARNING")
+            time.sleep(1)
+            system_gcc = shutil.which("gcc")
+            system_gxx = shutil.which("g++")
+            if system_gcc and system_gxx:
+                env["CC"] = system_gcc
+                env["CXX"] = system_gxx
+            return env, system_gcc
+    except Exception as e:
+        log_message(f"GCC version check failed: {e}", "WARNING")
+        time.sleep(1)
+        system_gcc = shutil.which("gcc")
+        system_gxx = shutil.which("g++")
+        if system_gcc and system_gxx:
+            env["CC"] = system_gcc
+            env["CXX"] = system_gxx
+        return env, system_gcc or "/usr/bin/gcc"
+
+def install_system_deps(system_info: Dict[str, any]) -> bool:
+    """Install system dependencies with improved GCC handling"""
+    log_message("Installing system dependencies")
+    time.sleep(1)
+    
+    # Check if we need sudo
+    has_sudo = check_sudo_available()
+    apt_cmd = ["sudo", "apt"] if has_sudo else ["apt"]
+    
+    # Clean up problematic repositories
+    log_message("Cleaning problematic repositories")
+    
+    # Check for CUDA repository version mismatch and warn
+    try:
+        if os.path.exists("/etc/apt/sources.list.d/"):
+            sources_output = subprocess.check_output(
+                ["find", "/etc/apt/sources.list.d/", "-name", "*cuda*", "-type", "f"], 
+                text=True
+            ).strip()
+            if sources_output and "ubuntu2004" in sources_output:
+                log_message("CUDA repo version mismatch detected", "WARNING")
+                log_message("Consider updating CUDA keyring", "WARNING")
+                time.sleep(1)
+    except Exception:
+        pass
+    
+    # Install software-properties-common
+    log_message("Installing software-properties-common")
+    success, output = run_command(apt_cmd + ["install", "-y", "software-properties-common"], timeout=200)
+    if not success:
+        log_message(f"software-properties-common failed", "ERROR")
+        time.sleep(3)
+        return False
+    log_message("software-properties-common installed")
+    time.sleep(1)
+    
+    # Add Ubuntu Toolchain PPA for GCC 9
+    log_message("Adding GCC Toolchain PPA")
+    success, output = run_command(["sudo", "add-apt-repository", "-y", "ppa:ubuntu-toolchain-r/test"], timeout=120)
+    if not success:
+        log_message("PPA add failed", "WARNING")
+        time.sleep(1)
+    else:
+        log_message("PPA added")
+        time.sleep(1)
+    
+    # Check and enable universe repository
+    log_message("Enabling universe repository")
+    success, output = run_command(["sudo", "add-apt-repository", "-y", "universe"], timeout=120)
+    if not success:
+        log_message("Universe enable failed", "WARNING")
+        time.sleep(1)
+    else:
+        log_message("Universe enabled")
+        time.sleep(1)
+    
+    # Update package lists with error handling for problematic repos
+    log_message("Updating package lists")
+    success, output = run_command(apt_cmd + ["update"], timeout=300)
+    if not success:
+        # Check if it's just the toolchain PPA causing issues
+        if "ubuntu-toolchain-r" in output and ("404" in output or "NO_PUBKEY" in output):
+            log_message("Toolchain PPA unavailable, continuing", "WARNING")
+            time.sleep(1)
+            # Try to continue anyway since the main repos should work
+        else:
+            log_message("Package update failed", "ERROR")
+            time.sleep(3)
+            return False
+    log_message("Package lists updated")
+    time.sleep(1)
+    
+    # Check for required tools
+    required_tools = ["git", "cmake", "build-essential"]
+    log_message("Installing build tools")
+    success, output = run_command(apt_cmd + ["install", "-y"] + required_tools, timeout=300)
+    if not success:
+        log_message("Build tools failed", "ERROR")
+        time.sleep(3)
+        return False
+    log_message("Build tools installed")
+    time.sleep(1)
+    
+    # Improved GCC installation strategy
+    cuda_version = system_info['cuda_version']
+    max_gcc = CUDA_GCC_COMPATIBILITY.get(cuda_version, 9)
+    gcc_packages = [f"gcc-{max_gcc}", f"g++-{max_gcc}"]
+    
+    # Install specific GCC version
+    log_message(f"Installing GCC {max_gcc}")
+    success, output = run_command(apt_cmd + ["install", "-y"] + gcc_packages, timeout=300)
+    if not success:
+        log_message(f"GCC-{max_gcc} install failed", "WARNING")
+        time.sleep(1)
+    
+    # Set GCC alternatives
+    log_message("Configuring GCC alternatives")
+    run_command(["sudo", "update-alternatives", "--install", "/usr/bin/gcc", "gcc", f"/usr/bin/gcc-{max_gcc}", "90"])
+    run_command(["sudo", "update-alternatives", "--install", "/usr/bin/g++", "g++", f"/usr/bin/g++-{max_gcc}", "90"])
+    run_command(["sudo", "update-alternatives", "--set", "gcc", f"/usr/bin/gcc-{max_gcc}"])
+    run_command(["sudo", "update-alternatives", "--set", "g++", f"/usr/bin/g++-{max_gcc}"])
+    
+    # Verify GCC version
+    try:
+        gcc_output = subprocess.check_output(["gcc", "--version"], text=True, timeout=10)
+        version_line = gcc_output.splitlines()[0]
+        log_message(f"Active GCC: {version_line}")
+        time.sleep(1)
+    except Exception as e:
+        log_message(f"GCC verification failed: {e}", "WARNING")
+        time.sleep(1)
+    
+    # Verify cmake is available
+    log_message("Verifying cmake installation")
+    try:
+        subprocess.check_output(["cmake", "--version"], timeout=10)
+        log_message("CMake verified")
+        time.sleep(1)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        log_message("CMake not found", "ERROR")
+        time.sleep(3)
+        return False
+    
+    # Install development libraries
+    dev_libs = [
+        "pkg-config", "libssl-dev", "zlib1g-dev", "libbz2-dev",
+        "libreadline-dev", "libsqlite3-dev", "libncurses5-dev",
+        "libxml2-dev", "libxmlsec1-dev", "libffi-dev", "liblzma-dev"
     ]
-    success, output = run_command(["sudo", "apt", "update"], timeout=120)
+    log_message("Installing dev libraries")
+    success, output = run_command(apt_cmd + ["install", "-y"] + dev_libs, timeout=400)
     if not success:
-        log_message(f"Update failed: {output}", "ERROR")
+        log_message("Dev libraries failed", "ERROR")
         time.sleep(3)
-        raise InstallerError("Update failed")
-    success, output = run_command(["sudo", "apt", "install", "-y"] + deps, timeout=300)
+        return False
+    log_message("Dev libraries installed")
+    time.sleep(1)
+    
+    # Install Python development
+    python_deps = ["python3-dev", "python3-venv", "python3-pip"]
+    log_message("Installing Python dev")
+    success, output = run_command(apt_cmd + ["install", "-y"] + python_deps, timeout=200)
     if not success:
-        log_message(f"Install failed: {output}", "ERROR")
+        log_message("Python dev failed", "ERROR")
         time.sleep(3)
-        raise InstallerError("Install failed")
+        return False
+    log_message("Python dev installed")
+    time.sleep(1)
+    
+    # Install utilities
+    utilities = ["wget", "curl", "llvm", "xz-utils", "tk-dev"]
+    log_message("Installing utilities")
+    success, output = run_command(apt_cmd + ["install", "-y"] + utilities, timeout=200)
+    if not success:
+        log_message("Utilities install failed", "ERROR")
+        time.sleep(3)
+        return False
+    log_message("Utilities installed")
+    time.sleep(1)
+    
+    log_message("System dependencies completed")
     time.sleep(1)
     return True
+
 
 def setup_llama_cpp() -> bool:
-    """Setup llama.cpp"""
-    log_message("Setting up llama.cpp...")
+    """Setup llama.cpp with retry logic for network issues"""
+    log_message("Setting up llama.cpp")
     time.sleep(1)
-    if LLAMA_DIR.exists():
-        shutil.rmtree(LLAMA_DIR)
-    success, output = run_command([
-        "git", "clone", "--depth", "1",
-        "https://github.com/ggerganov/llama.cpp.git",
-        str(LLAMA_DIR)
-    ], timeout=180)
-    if not success:
-        log_message(f"Clone failed: {output}", "ERROR")
-        time.sleep(3)
-        raise InstallerError("Clone failed")
-    time.sleep(1)
-    return True
+    
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            # Clean existing directory if it exists and is incomplete
+            if LLAMA_DIR.exists():
+                # Check if it's a partial clone by looking for .git and some core files
+                git_dir = LLAMA_DIR / ".git"
+                makefile = LLAMA_DIR / "Makefile"
+                
+                if git_dir.exists() and makefile.exists():
+                    log_message("Valid llama.cpp found")
+                    # Try to fetch updates if it's a valid repo
+                    success, output = run_command([
+                        "git", "fetch", "--depth", "1", "origin", "master"
+                    ], cwd=LLAMA_DIR, timeout=120)
+                    
+                    if success:
+                        # Try to reset to latest
+                        success, output = run_command([
+                            "git", "reset", "--hard", "origin/master"
+                        ], cwd=LLAMA_DIR, timeout=30)
+                        
+                        if success:
+                            log_message("Llama.cpp updated successfully")
+                            time.sleep(1)
+                            return True
+                    
+                    log_message("Update failed, re-cloning")
+                
+                log_message("Removing incomplete llama.cpp")
+                shutil.rmtree(LLAMA_DIR)
+                time.sleep(1)
+            
+            # Attempt to clone
+            log_message(f"Cloning attempt {retry_count + 1}/{max_retries}")
+            
+            # Use git clone with better network handling
+            clone_cmd = [
+                "git", "clone", 
+                "--depth", "1",
+                "--single-branch",
+                "--branch", "master",
+                "--config", "http.postBuffer=524288000",  # 500MB buffer
+                "--config", "http.lowSpeedLimit=1000",    # Min 1KB/s
+                "--config", "http.lowSpeedTime=30",       # For 30 seconds
+                "https://github.com/ggerganov/llama.cpp.git",
+                str(LLAMA_DIR)
+            ]
+            
+            success, output = run_command(clone_cmd, timeout=300)
+            
+            if success:
+                # Verify the clone was successful
+                makefile = LLAMA_DIR / "Makefile"
+                cmake_file = LLAMA_DIR / "CMakeLists.txt"
+                
+                if makefile.exists() and cmake_file.exists():
+                    log_message("Clone verified successfully")
+                    time.sleep(1)
+                    return True
+                else:
+                    log_message("Clone incomplete, retrying", "WARNING")
+                    if LLAMA_DIR.exists():
+                        shutil.rmtree(LLAMA_DIR)
+                    time.sleep(2)
+            else:
+                log_message(f"Clone failed: {output}", "ERROR")
+                if LLAMA_DIR.exists():
+                    shutil.rmtree(LLAMA_DIR)
+                time.sleep(2)
+            
+            retry_count += 1
+            
+            if retry_count < max_retries:
+                wait_time = 5 * retry_count  # Progressive backoff: 5s, 10s, 15s
+                log_message(f"Retrying in {wait_time}s")
+                time.sleep(wait_time)
+        
+        except Exception as e:
+            log_message(f"Clone error: {e}", "ERROR")
+            if LLAMA_DIR.exists():
+                shutil.rmtree(LLAMA_DIR)
+            retry_count += 1
+            
+            if retry_count < max_retries:
+                wait_time = 5 * retry_count
+                log_message(f"Retrying in {wait_time}s")
+                time.sleep(wait_time)
+            else:
+                time.sleep(3)
+    
+    log_message("Clone attempts failed", "ERROR")
+    time.sleep(3)
+    raise InstallerError("Failed to clone llama.cpp")
 
 def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
-    """Compile llama.cpp"""
+    """Compile llama.cpp with detailed feedback"""
     log_message("Compiling llama.cpp...")
     time.sleep(1)
+    
+    # Clean build directory
     if BUILD_DIR.exists():
+        log_message("Cleaning build directory")
         shutil.rmtree(BUILD_DIR)
+        time.sleep(1)
+    
     BUILD_DIR.mkdir(parents=True)
-    arch_flags, _ = get_cuda_architecture_flags()
+    
+    # Configure CUDA compilers
+    cuda_env, gcc_path = configure_cuda_compilers(cuda_version)
+    
+    # Prepare cmake flags with explicit host compiler
     cmake_flags = [
-        "-DLLAMA_CUDA=ON",
-        "-DLLAMA_CUDA_UNIFIED_MEMORY=ON",
-        "-DLLAMA_CUDA_F16=ON",
-        "-DCMAKE_BUILD_TYPE=Release"
-    ] + arch_flags
-    cuda_env = os.environ.copy()
+        "-DGGML_CUDA=ON",
+        "-DGGML_CUDA_UNIFIED_MEMORY=ON",
+        "-DGGML_CUDA_F16=ON",
+        "-DCMAKE_BUILD_TYPE=Release",
+        f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}",
+        f"-DCMAKE_CUDA_HOST_COMPILER={gcc_path}"
+    ]
+    
+    # Set CUDA environment
     cuda_env.update({"CUDACXX": "/usr/local/cuda/bin/nvcc"})
+    
+    # Configure with CMake
+    log_message("Configuring CMake build")
     success, output = run_command(
         ["cmake", ".."] + cmake_flags,
         cwd=BUILD_DIR,
@@ -353,9 +688,15 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     if not success:
         log_message(f"CMake failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("CMake failed")
+        raise InstallerError("CMake configuration failed")
+    log_message("CMake configured successfully")
+    time.sleep(1)
+    
+    # Compile binary
+    log_message("Compiling binary...")
+    cpu_count = min(os.cpu_count() or 4, 8)
     success, output = run_command(
-        ["make", "-j", str(min(os.cpu_count() or 4, 8)), "main"],
+        ["make", "-j", str(cpu_count), "main"],
         cwd=BUILD_DIR,
         timeout=900,
         env=cuda_env
@@ -363,49 +704,86 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     if not success:
         log_message(f"Make failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("Make failed")
+        raise InstallerError("Binary compilation failed")
+    log_message("Binary compiled successfully")
+    time.sleep(1)
+    
+    # Install binary
+    log_message("Installing binary...")
     possible_locations = [BUILD_DIR / "bin" / "main", BUILD_DIR / "main"]
     main_binary = next((loc for loc in possible_locations if loc.exists()), None)
     if not main_binary:
-        log_message("Binary missing", "ERROR")
+        log_message("Binary not found", "ERROR")
         time.sleep(3)
-        raise InstallerError("Binary missing")
+        raise InstallerError("Compiled binary missing")
+    
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(main_binary, BIN_DIR / "main")
     os.chmod(BIN_DIR / "main", 0o755)
+    log_message("Binary installed successfully")
+    time.sleep(1)
+    
+    # Test binary
+    log_message("Testing binary...")
     success, output = run_command([str(BIN_DIR / "main"), "--help"], timeout=10)
     if not success:
         log_message(f"Binary test failed: {output}", "WARNING")
         time.sleep(1)
-    time.sleep(1)
+    else:
+        log_message("Binary test passed")
+        time.sleep(1)
+    
     return True
 
 def setup_python_env(cuda_version: str, arch_string: str) -> bool:
-    """Setup Python env"""
+    """Setup Python environment with detailed feedback"""
     log_message("Creating Python env...")
     time.sleep(1)
+    
+    # Clean up existing venv
     if VENV_DIR.exists():
+        log_message("Removing existing venv")
         shutil.rmtree(VENV_DIR)
+        time.sleep(1)
+    
+    # Create virtual environment
+    log_message("Creating virtual env")
     success, output = run_command([sys.executable, "-m", "venv", str(VENV_DIR)])
     if not success:
         log_message(f"Venv failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("Venv failed")
+        raise InstallerError("Venv creation failed")
+    log_message("Virtual env created")
+    time.sleep(1)
+    
+    # Upgrade pip
     pip = str(VENV_DIR / "bin" / "pip")
+    log_message("Upgrading pip...")
     success, output = run_command([pip, "install", "--upgrade", "pip", "wheel", "setuptools"], timeout=120)
     if not success:
-        log_message(f"Pip failed: {output}", "ERROR")
+        log_message(f"Pip upgrade failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("Pip failed")
-    success, output = run_command([pip, "install"] + REQUIREMENTS, timeout=600)
+        raise InstallerError("Pip upgrade failed")
+    log_message("Pip upgraded successfully")
+    time.sleep(1)
+    
+    # Install basic requirements
+    basic_reqs = [req for req in REQUIREMENTS if not req.startswith("llama-cpp-python")]
+    log_message("Installing basic packages")
+    success, output = run_command([pip, "install"] + basic_reqs, timeout=600)
     if not success:
-        log_message(f"Packages failed: {output}", "ERROR")
+        log_message(f"Basic packages failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("Packages failed")
-    env = os.environ.copy()
+        raise InstallerError("Basic packages failed")
+    log_message("Basic packages installed")
+    time.sleep(1)
+    
+    # Install llama-cpp-python with CUDA
+    log_message("Compiling llama-cpp-python")
+    env, gcc_path = configure_cuda_compilers(cuda_version)
     env.update({
         "LLAMA_CUDA": "1",
-        "CMAKE_ARGS": f"-DLLAMA_CUDA=ON -DLLAMA_CUDA_UNIFIED_MEMORY=ON -DCMAKE_CUDA_ARCHITECTURES={arch_string}",
+        "CMAKE_ARGS": f"-DLLAMA_CUDA=ON -DLLAMA_CUDA_UNIFIED_MEMORY=ON -DCMAKE_CUDA_ARCHITECTURES={arch_string} -DCMAKE_CUDA_HOST_COMPILER={gcc_path}",
         "FORCE_CMAKE": "1",
         "CUDACXX": "/usr/local/cuda/bin/nvcc"
     })
@@ -413,16 +791,29 @@ def setup_python_env(cuda_version: str, arch_string: str) -> bool:
         pip, "install", "--force-reinstall", "--no-cache-dir", "llama-cpp-python==0.2.23"
     ], timeout=1200, env=env)
     if not success:
-        log_message(f"llama-cpp failed: {output}", "ERROR")
+        log_message(f"llama-cpp-python failed: {output}", "ERROR")
         time.sleep(3)
-        raise InstallerError("llama-cpp failed")
+        raise InstallerError("llama-cpp-python failed")
+    log_message("llama-cpp-python installed")
+    time.sleep(1)
+    
+    log_message("Python env complete")
     time.sleep(1)
     return True
 
 def create_config(system_info: Dict[str, any]) -> None:
     """Generate config file"""
-    print_status("Creating config...", None)
+    log_message("Creating config...")
     time.sleep(1)
+    
+    # Clean up existing data directory
+    data_dir = BASE_DIR / "data"
+    if data_dir.exists():
+        log_message("Removing existing data")
+        shutil.rmtree(data_dir)
+        time.sleep(1)
+    
+    # Calculate optimal batch size
     gpu = next(g for g in system_info["gpus"] if g["index"] == system_info["selected_gpu"])
     vram_mb = gpu["vram"]
     if vram_mb >= 12288:
@@ -434,10 +825,16 @@ def create_config(system_info: Dict[str, any]) -> None:
     else:
         n_batch = 1024
 
+    # Create directories
+    log_message("Creating data directories")
     for dir_path in [BASE_DIR / "data", BASE_DIR / "data" / "temp", 
                      BASE_DIR / "data" / "history", BASE_DIR / "data" / "vectors"]:
         dir_path.mkdir(parents=True, exist_ok=True)
+    log_message("Data directories created")
+    time.sleep(1)
 
+    # Write configuration
+    log_message("Writing config file")
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         f.write(CONFIG_TEMPLATE % (
@@ -445,27 +842,30 @@ def create_config(system_info: Dict[str, any]) -> None:
             json.dumps(system_info["gpus"]),
             system_info["selected_gpu"],
             system_info["cuda_version"],
-            gpu["compute_capability"],
-            vram_mb
+            gpu["compute_capability"]
         ))
+    log_message("Config file written")
+    time.sleep(1)
 
+    # Verify configuration
     if not CONFIG_PATH.exists():
-        print_status("Config creation failed", False)
+        log_message("Config creation failed", "ERROR")
         time.sleep(3)
         raise InstallerError("Config creation failed")
 
     try:
         with open(CONFIG_PATH, "r") as f:
             json.load(f)
+        log_message("Config verified")
+        time.sleep(1)
     except json.JSONDecodeError:
-        print_status("Invalid JSON config", False)
+        log_message("Invalid config JSON", "ERROR")
         time.sleep(3)
         raise InstallerError("Invalid JSON config")
-    time.sleep(1)
 
 def print_system_summary(system_info: Dict[str, any]) -> None:
     """Display system summary"""
-    log_message("Installation Summary:")
+    log_message("System Summary:")
     log_message(f"CUDA: {system_info['cuda_version']}")
     log_message(f"Driver: {system_info['driver_version']}")
     log_message(f"GPU: {system_info['selected_gpu']}")
@@ -473,7 +873,7 @@ def print_system_summary(system_info: Dict[str, any]) -> None:
 
 def cleanup_on_failure():
     """Remove failed setup"""
-    log_message("Cleaning up...", "WARNING")
+    log_message("Cleaning up...")
     time.sleep(1)
     for path in [VENV_DIR, LLAMA_DIR, BUILD_DIR, BIN_DIR]:
         if path.exists():
@@ -484,19 +884,21 @@ def main():
     try:
         log_message(f"Installing {APP_NAME}")
         time.sleep(1)
-        if sys.stdin.isatty():
-            response = input("Continue? (y/N): ").strip().lower()
-            if response != 'y':
-                sys.exit(0)
+        
         sys_ok, system_info = check_system()
         print_system_summary(system_info)
-        install_system_deps()
+        
+        if not install_system_deps(system_info):
+            raise InstallerError("System dependencies failed")
+        
         setup_llama_cpp()
         compile_llama_cpp(system_info['cuda_version'], system_info['cuda_architectures'])
         setup_python_env(system_info['cuda_version'], system_info['cuda_architectures'])
         create_config(system_info)
-        log_message("Installation successful!")
+        
+        log_message("Install complete")
         log_message(f"Run: {VENV_DIR}/bin/python launcher.py")
+        
     except InstallerError as e:
         log_message(f"Failed: {e}", "ERROR")
         cleanup_on_failure()

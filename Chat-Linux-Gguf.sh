@@ -50,11 +50,17 @@ main_menu() {
     echo ""
     echo ""
     echo ""
+    echo ""
+    echo ""
+    echo "" 
     echo "    1. Run Main Program"
     echo ""
     echo "    2. Run Installation"
     echo ""
     echo "    3. Run Validation"
+    echo ""
+    echo ""
+    echo ""
     echo ""
     echo ""
     echo ""
@@ -218,7 +224,6 @@ run_installation() {
     
     echo "Starting installer..."
     sleep 1
-    clear
     
     # Run the installer script
     python3 installer.py
