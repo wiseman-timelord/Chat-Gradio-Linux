@@ -2,7 +2,7 @@
 Status: Alpha - Conversion mostly complete, but not testing yet.
 
 ### Description
-Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/wiseman-timelord/Chat-Gradio-Gguf) which runs on Windows. So, the plan for the differences are...
+Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/wiseman-timelord/Chat-Gradio-Gguf) (which runs on Windows). So, the plan for the differences are...
 - .sh instead of .bat, as well as program the scripts for specifically linux/ubuntu.
 - Cuda Only, gpu must still be selectable. Installer will only have options for Cuda 11 and Cuda 12. There will also be some optimization/cleanup after
 - The user must install cuda toolkit themselves.
