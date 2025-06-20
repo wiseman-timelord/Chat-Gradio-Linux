@@ -29,7 +29,7 @@ MIN_COMPUTE_CAPABILITY = 6.0
 
 # GCC compatibility mapping for CUDA versions
 CUDA_GCC_COMPATIBILITY = {
-    "11.0": 8,
+    "11.0": 9,
     "11.1": 10,
     "11.2": 10,
     "11.3": 10,
@@ -147,7 +147,7 @@ def get_cuda_architecture_flags() -> Tuple[List[str], str]:
     arch_string = ";".join(architectures) if architectures else "60;61;70;75;80;86;89;90"
     log_message(f"Detected architectures: {arch_string}")
     time.sleep(1)
-    return [f"-CMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string
+    return [f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string  # Fixed missing 'D'
 
 def check_unified_memory_support(compute_cap: str) -> bool:
     """Verify memory support"""
@@ -417,7 +417,7 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     log_message("software-properties-common installed")
     time.sleep(1)
     
-    # Add Ubuntu Toolchain PPA for GCC 9
+    # Add Ubuntu Toolchain PPA for GCC
     log_message("Adding GCC Toolchain PPA")
     success, output = run_command(["sudo", "add-apt-repository", "-y", "ppa:ubuntu-toolchain-r/test"], timeout=120)
     if not success:
@@ -445,7 +445,6 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
         if "ubuntu-toolchain-r" in output and ("404" in output or "NO_PUBKEY" in output):
             log_message("Toolchain PPA unavailable, continuing", "WARNING")
             time.sleep(1)
-            # Try to continue anyway since the main repos should work
         else:
             log_message("Package update failed", "ERROR")
             time.sleep(3)
@@ -454,7 +453,7 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     time.sleep(1)
     
     # Check for required tools
-    required_tools = ["git", "cmake", "build-essential"]
+    required_tools = ["git", "cmake", "build-essential", "libcurl4-openssl-dev"]  # Added libcurl4-openssl-dev
     log_message("Installing build tools")
     success, output = run_command(apt_cmd + ["install", "-y"] + required_tools, timeout=300)
     if not success:
@@ -473,8 +472,9 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     log_message(f"Installing GCC {max_gcc}")
     success, output = run_command(apt_cmd + ["install", "-y"] + gcc_packages, timeout=300)
     if not success:
-        log_message(f"GCC-{max_gcc} install failed", "WARNING")
-        time.sleep(1)
+        log_message(f"GCC-{max_gcc} install failed", "ERROR")
+        time.sleep(3)
+        return False
     
     # Set GCC alternatives
     log_message("Configuring GCC alternatives")
@@ -508,7 +508,8 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     dev_libs = [
         "pkg-config", "libssl-dev", "zlib1g-dev", "libbz2-dev",
         "libreadline-dev", "libsqlite3-dev", "libncurses5-dev",
-        "libxml2-dev", "libxmlsec1-dev", "libffi-dev", "liblzma-dev"
+        "libxml2-dev", "libxmlsec1-dev", "libffi-dev", "liblzma-dev",
+        "libcurl4-openssl-dev"  # Added again here for redundancy
     ]
     log_message("Installing dev libraries")
     success, output = run_command(apt_cmd + ["install", "-y"] + dev_libs, timeout=400)
@@ -692,11 +693,11 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     log_message("CMake configured successfully")
     time.sleep(1)
     
-    # Compile binary
+    # Compile binary - changed target from 'main' to 'llama'
     log_message("Compiling binary...")
     cpu_count = min(os.cpu_count() or 4, 8)
     success, output = run_command(
-        ["make", "-j", str(cpu_count), "main"],
+        ["make", "-j", str(cpu_count), "llama"],
         cwd=BUILD_DIR,
         timeout=900,
         env=cuda_env
@@ -708,24 +709,29 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     log_message("Binary compiled successfully")
     time.sleep(1)
     
-    # Install binary
+    # Install binary - updated possible locations to look for
     log_message("Installing binary...")
-    possible_locations = [BUILD_DIR / "bin" / "main", BUILD_DIR / "main"]
-    main_binary = next((loc for loc in possible_locations if loc.exists()), None)
-    if not main_binary:
+    possible_locations = [
+        BUILD_DIR / "bin" / "llama",
+        BUILD_DIR / "llama",
+        BUILD_DIR / "bin" / "main",  # Keep old path for backward compatibility
+        BUILD_DIR / "main"           # Keep old path for backward compatibility
+    ]
+    llama_binary = next((loc for loc in possible_locations if loc.exists()), None)
+    if not llama_binary:
         log_message("Binary not found", "ERROR")
         time.sleep(3)
         raise InstallerError("Compiled binary missing")
     
     BIN_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy(main_binary, BIN_DIR / "main")
-    os.chmod(BIN_DIR / "main", 0o755)
+    shutil.copy(llama_binary, BIN_DIR / "llama")
+    os.chmod(BIN_DIR / "llama", 0o755)
     log_message("Binary installed successfully")
     time.sleep(1)
     
-    # Test binary
+    # Test binary - updated binary name
     log_message("Testing binary...")
-    success, output = run_command([str(BIN_DIR / "main"), "--help"], timeout=10)
+    success, output = run_command([str(BIN_DIR / "llama"), "--help"], timeout=10)
     if not success:
         log_message(f"Binary test failed: {output}", "WARNING")
         time.sleep(1)
