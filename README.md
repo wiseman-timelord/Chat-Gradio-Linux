@@ -59,7 +59,6 @@ Starting installer...
 [2025-06-21 00:13:57] INFO: Installing system dependencies
 [2025-06-21 00:13:58] INFO: Cleaning problematic repositories
 [2025-06-21 00:13:58] WARNING: CUDA repo version mismatch detected
-
 ...
 
 ```
