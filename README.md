@@ -8,6 +8,35 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The user must install cuda toolkit themselves.
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system memory. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
+### Demonstration
+- The `Bash Menu` is looking good...
+```
+===============================================================================
+    Chat-Linux-Gguf: Bash Menu
+===============================================================================
+
+
+
+
+
+
+    1. Run Main Program
+
+    2. Run Installation
+
+    3. Run Validation
+
+
+
+
+
+
+===============================================================================
+Selection; Menu Options = 1-3, Exit Bash = X: 
+
+
+```
+
 ### Requirements
 - O.S. - Linux Only (Ubuntu ~24.10 recommended).
 - Python - Unknown min version (will be assessed after working version, but presumed 3.8+).
