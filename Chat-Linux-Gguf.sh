@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Initialize logging (console only)
+# Initialize logging
 log_message() {
     local message="$1"
     local level="${2:-INFO}"
@@ -29,37 +29,20 @@ for file in launcher.py installer.py validater.py; do
         exit 1
     fi
 done
+log_message "Required files found"
 sleep 1
 
-# Detect terminal width with fallback
-TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
-if [ "$TERM_WIDTH" -ge 120 ]; then
-    MENU_WIDTH=120
-else
-    MENU_WIDTH=80
-fi
-log_message "Terminal width: $TERM_WIDTH, Menu width: $MENU_WIDTH"
-sleep 1
-
-# Separator functions
+# Separator functions for 80 width terminal
 display_separator_thick() {
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        echo "======================================================================================================================="
-    else
-        echo "==============================================================================="
-    fi
+    echo "==============================================================================="
 }
 
 display_separator_thin() {
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        echo "-----------------------------------------------------------------------------------------------------------------------"
-    else
-        echo "-------------------------------------------------------------------------------"
-    fi
+    echo "-------------------------------------------------------------------------------"
 }
 
-# Menu functions
-main_menu_80() {
+# Main menu (80-width only)
+main_menu() {
     clear
     display_separator_thick
     echo "    Chat-Linux-Gguf: Bash Menu"
@@ -67,54 +50,11 @@ main_menu_80() {
     echo ""
     echo ""
     echo ""
-    echo ""
-    echo ""
-    echo ""
     echo "    1. Run Main Program"
     echo ""
     echo "    2. Run Installation"
     echo ""
     echo "    3. Run Validation"
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    display_separator_thick
-    read -p "Selection; Menu Options = 1-3, Exit Bash = X: " choice
-    choice=${choice//[[:space:]]/} # Trim whitespace
-    process_choice
-}
-
-main_menu_120() {
-    clear
-    display_separator_thick
-    echo "                                             _________  .____      ________                                          "
-    echo "                                             \_   ___ \ |    |    /  _____/                                          "
-    echo "                                       ______/    \  \/ |    |   /   \  ___  ______                                  "
-    echo "                                      /_____/\     \____|    |___\    \_\  \/_____/                                  " 
-    echo "                                              \______  /|_______ \\______  /                                         " 
-    echo "                                                     \/         \/       \/                                          "                           
-    display_separator_thin
-    echo "    Chat-Linux-Gguf: Bash Menu                                       "
-    display_separator_thick
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo ""
-    echo "    1. Run Main Program"
-    echo ""
-    echo "    2. Run Installation"
-    echo ""
-    echo "    3. Run Validation"
-    echo ""
-    echo ""
-    echo ""
-    echo ""
     echo ""
     echo ""
     echo ""
@@ -152,6 +92,7 @@ process_choice() {
                 sleep 3
                 exit 1
             fi
+            retry_count=0  # Reset counter for next menu call
             main_menu
             ;;
     esac
@@ -168,27 +109,35 @@ pause_if_interactive() {
 run_main_program() {
     clear
     display_separator_thick
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        echo "                                     Chat-Linux-Gguf: Launcher                                      "
-    else
-        echo "    Chat-Linux-Gguf: Launcher"
-    fi
+    echo "    Chat-Linux-Gguf: Launcher"
     display_separator_thick
     echo ""
     echo "Checking environment..."
-    # Check virtual environment and configuration
-    if [ ! -f ".venv/bin/python" ] || [ ! -f "data/persistent.json" ]; then
-        log_message "Error: Virtual environment or configuration file missing. Please run installation and validation first." "ERROR"
+    
+    # Check virtual environment
+    if [ ! -f ".venv/bin/python" ]; then
+        log_message "Error: Virtual environment missing. Please run installation first." "ERROR"
         sleep 3
         pause_if_interactive
         main_menu
         return
     fi
+    
+    # Check configuration
+    if [ ! -f "data/persistent.json" ]; then
+        log_message "Error: Configuration file missing. Please run installation first." "ERROR"
+        sleep 3
+        pause_if_interactive
+        main_menu
+        return
+    fi
+    
     # Run validation before launching
     source .venv/bin/activate
     python3 validater.py
     local validation_exit_code=$?
     deactivate
+    
     if [ $validation_exit_code -ne 0 ]; then
         log_message "Error: Validation failed. Cannot run main program." "ERROR"
         sleep 3
@@ -196,26 +145,33 @@ run_main_program() {
         main_menu
         return
     fi
+    
     echo "Starting Chat-Linux-Gguf..."
     sleep 1
+    
     # Activate virtual environment
     source .venv/bin/activate
     log_message "Activated: .venv"
     sleep 1
-    # Set PYTHONUNBUFFERED for unbuffered output
+    
+    # Set PYTHONUNBUFFERED for real time output
     export PYTHONUNBUFFERED=1
+    
     # Run the launcher script
     python3 -u launcher.py
     local exit_code=$?
-    if [ $exit_code -ne 0 ]; then
-        log_message "Error launching Chat-Linux-Gguf (exit code: $exit_code)" "ERROR"
-        sleep 3
-    fi
+    
     # Deactivate virtual environment
     deactivate
-    log_message "DeActivated: .venv"
+    log_message "Deactivated: .venv"
     sleep 1
     unset PYTHONUNBUFFERED
+    
+    if [ $exit_code -ne 0 ]; then
+        log_message "Program exited with error (code: $exit_code)" "ERROR"
+        sleep 3
+    fi
+    
     pause_if_interactive
     main_menu
 }
@@ -223,56 +179,64 @@ run_main_program() {
 run_installation() {
     clear
     display_separator_thick
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        echo "                                     Chat-Linux-Gguf: Installer                                      "
-    else
-        echo "    Chat-Linux-Gguf: Installer"
-    fi
+    echo "    Chat-Linux-Gguf: Installer"
     display_separator_thick
     echo ""
     echo "Note: Installation may require sudo for system dependencies."
-    echo "WARNING: This will delete ./data and ./.()['venv directories."
+    echo "WARNING: This will delete existing ./data and ./.venv directories."
+    
     if [[ -t 0 ]]; then
         read -p "Continue? (y/N): " confirm
         if [ "${confirm,,}" != "y" ]; then
-            log_message "Installation cancelled by user" "INFO"
+            log_message "Installation cancelled" "INFO"
             sleep 1
             main_menu
             return
         fi
+    else
+        log_message "Running in non-interactive mode" "INFO"
+    fi
+    
+    sleep 1
+    echo "Preparing installation..."
+    
+    # Remove existing data
+    if [ -d "data" ]; then
+        rm -rf data
+        log_message "Deleted: data"
         sleep 1
     fi
-    echo "Preparing installation..."
-    # Remove existing data and virtual environment
-    rm -rf data
-    log_message "Deleted: data"
-    sleep 1
-    echo "Foolproofing VENV Deletion"
-    deactivate 2>/dev/null || true
-    rm -rf .venv
-    log_message "Deleted: .venv"
-    sleep 1
-    echo ""
-    echo "Preparation Complete."
-    sleep 1
-    echo "Running Installer..."
+    
+    # Remove existing virtual environment
+    if [ -d ".venv" ]; then
+        # Ensure we're not in the virtual environment
+        deactivate 2>/dev/null || true
+        rm -rf .venv
+        log_message "Deleted: .venv"
+        sleep 1
+    fi
+    
+    echo "Starting installer..."
     sleep 1
     clear
+    
     # Run the installer script
     python3 installer.py
     local exit_code=$?
+    
     if [ $exit_code -ne 0 ]; then
-        log_message "Error during installation (exit code: $exit_code)" "ERROR"
+        log_message "Installation failed (code: $exit_code)" "ERROR"
         sleep 3
     else
         log_message "Installation completed" "INFO"
         sleep 1
     fi
+    
     # Ensure venv is deactivated
     deactivate 2>/dev/null || true
-    log_message "DeActivated: .venv (if active)"
+    log_message "Virtual environment status reset"
     sleep 1
-    unset PYTHONUNBUFFERED
+    
     pause_if_interactive
     main_menu
 }
@@ -280,55 +244,49 @@ run_installation() {
 run_validation() {
     clear
     display_separator_thick
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        echo "                                     Chat-Linux-Gguf: Library Validation                                      "
-    else
-        echo "    Chat-Linux-Gguf: Library Validation"
-    fi
+    echo "    Chat-Linux-Gguf: Validation"
     display_separator_thick
     echo ""
-    echo "Running Library Validation..."
-    sleep 1
+    
     # Check virtual environment
     if [ ! -f ".venv/bin/python" ]; then
-        log_message "Error: Virtual environment not found or invalid at .venv" "ERROR"
+        log_message "Error: Virtual environment not found" "ERROR"
         sleep 3
         pause_if_interactive
         main_menu
         return
     fi
+    
+    echo "Running validation checks..."
+    sleep 1
+    
     # Activate virtual environment
     source .venv/bin/activate
     log_message "Activated: .venv"
     sleep 1
+    
     # Run the validation script
     python3 validater.py
     local exit_code=$?
-    if [ $exit_code -ne 0 ]; then
-        log_message "Error during validation (exit code: $exit_code)" "ERROR"
-        sleep 3
-    else
-        log_message "Validation completed" "INFO"
-        sleep 1
-    fi
+    
     # Deactivate virtual environment
     deactivate
-    log_message "DeActivated: .venv"
+    log_message "Deactivated: .venv"
     sleep 1
+    
+    if [ $exit_code -ne 0 ]; then
+        log_message "Validation failed (code: $exit_code)" "ERROR"
+        sleep 3
+    else
+        log_message "Validation successful" "INFO"
+        sleep 1
+    fi
+    
     pause_if_interactive
     main_menu
 }
 
-# Main menu router
-main_menu() {
-    if [ "$MENU_WIDTH" -eq 120 ]; then
-        main_menu_120
-    else
-        main_menu_80
-    fi
-}
-
 # Start the script
-log_message "Starting Chat-Linux-Gguf Bash script"
+log_message "Starting Chat-Linux-Gguf"
 sleep 1
 main_menu
