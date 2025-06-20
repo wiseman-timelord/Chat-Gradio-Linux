@@ -46,18 +46,20 @@ WARNING: This will delete existing ./data and ./.venv directories.
 Continue? (y/N): y
 Preparing installation...
 Starting installer...
-[2025-06-20 23:44:17] INFO: Installing Chat-Linux-Gguf
-[2025-06-20 23:44:18] INFO: Verifying system...
-[2025-06-20 23:44:19] INFO: Detected architectures: 61
-[2025-06-20 23:44:20] INFO: Detected GPUs:
-[2025-06-20 23:44:20] INFO: [0] NVIDIA GeForce GTX 1060 3GB ✓UM VRAM: 3072MB
-[2025-06-20 23:44:21] INFO: Auto-selected GPU: 0
-[2025-06-20 23:44:22] INFO: System Summary:
-[2025-06-20 23:44:22] INFO: CUDA: 11.0
-[2025-06-20 23:44:22] INFO: Driver: 570.133.07
-[2025-06-20 23:44:22] INFO: GPU: 0
-[2025-06-20 23:44:23] INFO: Installing system dependencies
-[2025-06-20 23:44:24] INFO: Cleaning problematic repositories
+[2025-06-21 00:13:51] INFO: Installing Chat-Linux-Gguf
+[2025-06-21 00:13:52] INFO: Verifying system...
+[2025-06-21 00:13:53] INFO: Detected architectures: 61
+[2025-06-21 00:13:54] INFO: Detected GPUs:
+[2025-06-21 00:13:54] INFO: [0] NVIDIA GeForce GTX 1060 3GB ✓UM VRAM: 3072MB
+[2025-06-21 00:13:55] INFO: Auto-selected GPU: 0
+[2025-06-21 00:13:56] INFO: System Summary:
+[2025-06-21 00:13:56] INFO: CUDA: 11.0
+[2025-06-21 00:13:56] INFO: Driver: 570.133.07
+[2025-06-21 00:13:56] INFO: GPU: 0
+[2025-06-21 00:13:57] INFO: Installing system dependencies
+[2025-06-21 00:13:58] INFO: Cleaning problematic repositories
+[2025-06-21 00:13:58] WARNING: CUDA repo version mismatch detected
+
 ...
 
 ```
