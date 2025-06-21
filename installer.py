@@ -9,6 +9,8 @@ import sys
 import re
 import shutil
 import time
+import socket
+import threading
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List
 
@@ -92,21 +94,72 @@ def log_message(message: str, level: str = "INFO") -> None:
     print(f"[{timestamp}] {level}: {message}")
     sys.stdout.flush()
 
+
+def display_progress(progress: float, downloaded: int, total: int, elapsed: float, estimated: float) -> None:
+    """Display progress bar with 10 steps, percent, size, and time"""
+    steps = 10
+    filled = int(progress * steps)
+    bar = "=" * filled + "-" * (steps - filled)
+    percent = min(int(progress * 100), 100)  # Cap at 100%
+    
+    # Format sizes appropriately
+    if total > 1024:
+        size_str = f"{downloaded/1024:.1f}MB/{total/1024:.1f}MB"
+    else:
+        size_str = f"{downloaded:.0f}KB/{total:.0f}KB"
+    
+    # Format time appropriately
+    elapsed_str = f"{int(elapsed)}s"
+    if estimated > 0 and estimated < 9999:
+        estimated_str = f"{int(estimated)}s"
+        time_str = f"{elapsed_str}/{estimated_str}"
+    else:
+        time_str = elapsed_str
+    
+    # Clear line and write progress
+    sys.stdout.write(f"\r\033[K[{bar}] {percent}% {size_str} {time_str}")
+    sys.stdout.flush()
+
 def run_command(cmd: list, cwd: Optional[Path] = None, timeout: int = 600, 
-                env: Optional[Dict[str, str]] = None) -> Tuple[bool, str]:
-    """Execute command"""
+                env: Optional[Dict[str, str]] = None, stream_output: bool = False) -> Tuple[bool, str]:
+    """Execute command with optional streaming for progress"""
+    output = []
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(cwd) if cwd else None,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=timeout,
-            env=env
-        )
-        return True, result.stdout
+        if stream_output:
+            process = subprocess.Popen(
+                cmd,
+                cwd=str(cwd) if cwd else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env=env,
+                bufsize=1,
+                universal_newlines=True
+            )
+            while True:
+                line = process.stdout.readline()
+                if line == "" and process.poll() is not None:
+                    break
+                if line:
+                    output.append(line.strip())
+                    sys.stdout.write(f"\r{line.strip()}")
+                    sys.stdout.flush()
+            return_code = process.wait(timeout=timeout)
+            if return_code != 0:
+                return False, "\n".join(output)
+            return True, "\n".join(output)
+        else:
+            result = subprocess.run(
+                cmd,
+                cwd=str(cwd) if cwd else None,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=timeout,
+                env=env
+            )
+            return True, result.stdout
     except subprocess.CalledProcessError as e:
         return False, e.stdout
     except subprocess.TimeoutExpired:
@@ -147,7 +200,7 @@ def get_cuda_architecture_flags() -> Tuple[List[str], str]:
     arch_string = ";".join(architectures) if architectures else "60;61;70;75;80;86;89;90"
     log_message(f"Detected architectures: {arch_string}")
     time.sleep(1)
-    return [f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string  # Fixed missing 'D'
+    return [f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}"], arch_string
 
 def check_unified_memory_support(compute_cap: str) -> bool:
     """Verify memory support"""
@@ -453,7 +506,7 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     time.sleep(1)
     
     # Check for required tools
-    required_tools = ["git", "cmake", "build-essential", "libcurl4-openssl-dev"]  # Added libcurl4-openssl-dev
+    required_tools = ["git", "cmake", "build-essential", "libcurl4-openssl-dev"]
     log_message("Installing build tools")
     success, output = run_command(apt_cmd + ["install", "-y"] + required_tools, timeout=300)
     if not success:
@@ -509,7 +562,7 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
         "pkg-config", "libssl-dev", "zlib1g-dev", "libbz2-dev",
         "libreadline-dev", "libsqlite3-dev", "libncurses5-dev",
         "libxml2-dev", "libxmlsec1-dev", "libffi-dev", "liblzma-dev",
-        "libcurl4-openssl-dev"  # Added again here for redundancy
+        "libcurl4-openssl-dev"
     ]
     log_message("Installing dev libraries")
     success, output = run_command(apt_cmd + ["install", "-y"] + dev_libs, timeout=400)
@@ -546,104 +599,133 @@ def install_system_deps(system_info: Dict[str, any]) -> bool:
     time.sleep(1)
     return True
 
-
 def setup_llama_cpp() -> bool:
-    """Setup llama.cpp with retry logic for network issues"""
+    """Setup llama.cpp with retry logic and progress for cloning"""
     log_message("Setting up llama.cpp")
     time.sleep(1)
+    
+    # Redefine LLAMA_DIR for temporary cloning
+    LLAMA_DIR = BASE_DIR / "data" / "temp" / "llama.cpp"
+    
+    def safe_rmtree(path: Path, retries: int = 3, delay: float = 1.0) -> None:
+        """Safely remove directory with retries"""
+        for attempt in range(retries):
+            try:
+                if path.exists():
+                    shutil.rmtree(path, ignore_errors=False)
+                return
+            except OSError as e:
+                if attempt < retries - 1:
+                    log_message(f"Cleanup retry {attempt + 1}/{retries}: {e}", "WARNING")
+                    time.sleep(delay)
+                else:
+                    raise
     
     max_retries = 3
     retry_count = 0
     
     while retry_count < max_retries:
         try:
-            # Clean existing directory if it exists and is incomplete
-            if LLAMA_DIR.exists():
-                # Check if it's a partial clone by looking for .git and some core files
-                git_dir = LLAMA_DIR / ".git"
-                makefile = LLAMA_DIR / "Makefile"
+            # Check if valid repo exists
+            git_dir = LLAMA_DIR / ".git"
+            makefile = LLAMA_DIR / "Makefile"
+            cmake_file = LLAMA_DIR / "CMakeLists.txt"
+            
+            if git_dir.exists() and makefile.exists() and cmake_file.exists():
+                log_message("Valid llama.cpp found")
+                # Try to fetch updates
+                success, output = run_command([
+                    "git", "fetch", "--depth", "1", "origin", "master"
+                ], cwd=LLAMA_DIR, timeout=120)
                 
-                if git_dir.exists() and makefile.exists():
-                    log_message("Valid llama.cpp found")
-                    # Try to fetch updates if it's a valid repo
+                if success:
                     success, output = run_command([
-                        "git", "fetch", "--depth", "1", "origin", "master"
-                    ], cwd=LLAMA_DIR, timeout=120)
-                    
+                        "git", "reset", "--hard", "origin/master"
+                    ], cwd=LLAMA_DIR, timeout=30)
                     if success:
-                        # Try to reset to latest
-                        success, output = run_command([
-                            "git", "reset", "--hard", "origin/master"
-                        ], cwd=LLAMA_DIR, timeout=30)
-                        
-                        if success:
-                            log_message("Llama.cpp updated successfully")
-                            time.sleep(1)
-                            return True
-                    
-                    log_message("Update failed, re-cloning")
-                
-                log_message("Removing incomplete llama.cpp")
-                shutil.rmtree(LLAMA_DIR)
+                        log_message("Llama.cpp updated")
+                        time.sleep(1)
+                        return True
+                log_message("Update failed, re-cloning")
+            
+            # Clean incomplete directory
+            if LLAMA_DIR.exists():
+                log_message("Removing incomplete clone")
+                safe_rmtree(LLAMA_DIR)
                 time.sleep(1)
             
-            # Attempt to clone
+            # Clone with simplified progress
             log_message(f"Cloning attempt {retry_count + 1}/{max_retries}")
+            LLAMA_DIR.parent.mkdir(parents=True, exist_ok=True)
             
-            # Use git clone with better network handling
             clone_cmd = [
-                "git", "clone", 
-                "--depth", "1",
-                "--single-branch",
-                "--branch", "master",
-                "--config", "http.postBuffer=524288000",  # 500MB buffer
-                "--config", "http.lowSpeedLimit=1000",    # Min 1KB/s
-                "--config", "http.lowSpeedTime=30",       # For 30 seconds
+                "git", "clone", "--progress",
+                "--depth", "1", "--single-branch", "--branch", "master",
                 "https://github.com/ggerganov/llama.cpp.git",
                 str(LLAMA_DIR)
             ]
             
-            success, output = run_command(clone_cmd, timeout=300)
+            # Simple progress tracking
+            start_time = time.time()
+            estimated_size = 50000  # KB
             
-            if success:
-                # Verify the clone was successful
-                makefile = LLAMA_DIR / "Makefile"
-                cmake_file = LLAMA_DIR / "CMakeLists.txt"
+            process = subprocess.Popen(
+                clone_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            # Monitor process with simple progress updates
+            while process.poll() is None:
+                elapsed = time.time() - start_time
+                # Simple time-based progress estimation
+                progress = min(elapsed / 60.0, 0.95)  # Assume 60s max, cap at 95%
+                estimated_downloaded = progress * estimated_size
+                estimated_time = 60.0
                 
+                display_progress(progress, estimated_downloaded, estimated_size, elapsed, estimated_time)
+                time.sleep(0.5)
+            
+            return_code = process.wait()
+            
+            # Complete progress bar
+            elapsed = time.time() - start_time
+            display_progress(1.0, estimated_size, estimated_size, elapsed, elapsed)
+            sys.stdout.write("\n")  # New line after progress
+            sys.stdout.flush()
+            
+            if return_code == 0:
                 if makefile.exists() and cmake_file.exists():
-                    log_message("Clone verified successfully")
+                    log_message("Clone complete")
                     time.sleep(1)
                     return True
                 else:
-                    log_message("Clone incomplete, retrying", "WARNING")
-                    if LLAMA_DIR.exists():
-                        shutil.rmtree(LLAMA_DIR)
-                    time.sleep(2)
+                    log_message("Clone incomplete", "WARNING")
+                    safe_rmtree(LLAMA_DIR)
+                    time.sleep(1)
             else:
-                log_message(f"Clone failed: {output}", "ERROR")
-                if LLAMA_DIR.exists():
-                    shutil.rmtree(LLAMA_DIR)
-                time.sleep(2)
+                stderr_output = process.stderr.read() if process.stderr else "Unknown error"
+                log_message(f"Clone failed: {stderr_output[:100]}", "WARNING")
+                safe_rmtree(LLAMA_DIR)
+                time.sleep(1)
             
             retry_count += 1
-            
             if retry_count < max_retries:
-                wait_time = 5 * retry_count  # Progressive backoff: 5s, 10s, 15s
+                wait_time = 5 * retry_count
                 log_message(f"Retrying in {wait_time}s")
                 time.sleep(wait_time)
         
         except Exception as e:
             log_message(f"Clone error: {e}", "ERROR")
-            if LLAMA_DIR.exists():
-                shutil.rmtree(LLAMA_DIR)
+            safe_rmtree(LLAMA_DIR)
             retry_count += 1
-            
             if retry_count < max_retries:
                 wait_time = 5 * retry_count
-                log_message(f"Retrying in {wait_time}s")
+                log_message(f"Retry {retry_count + 1}/{max_retries}")
                 time.sleep(wait_time)
-            else:
-                time.sleep(3)
     
     log_message("Clone attempts failed", "ERROR")
     time.sleep(3)
@@ -654,13 +736,37 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     log_message("Compiling llama.cpp...")
     time.sleep(1)
     
+    # Redefine LLAMA_DIR and BUILD_DIR for temporary cloning
+    LLAMA_DIR = BASE_DIR / "data" / "temp" / "llama.cpp"
+    BUILD_DIR = LLAMA_DIR / "build"
+    
+    def safe_rmtree(path: Path, retries: int = 3, delay: float = 1.0) -> None:
+        """Safely remove directory with retries"""
+        for attempt in range(retries):
+            try:
+                if path.exists():
+                    shutil.rmtree(path, ignore_errors=False)
+                return
+            except OSError as e:
+                if attempt < retries - 1:
+                    log_message(f"Cleanup retry {attempt + 1}/{retries}: {e}", "WARNING")
+                    time.sleep(delay)
+                else:
+                    raise
+    
     # Clean build directory
     if BUILD_DIR.exists():
         log_message("Cleaning build directory")
-        shutil.rmtree(BUILD_DIR)
+        safe_rmtree(BUILD_DIR)
         time.sleep(1)
     
     BUILD_DIR.mkdir(parents=True)
+    
+    # Verify CMakeLists.txt exists
+    if not (LLAMA_DIR / "CMakeLists.txt").exists():
+        log_message(f"CMakeLists.txt missing in {LLAMA_DIR}", "ERROR")
+        time.sleep(3)
+        raise InstallerError("CMakeLists.txt not found")
     
     # Configure CUDA compilers
     cuda_env, gcc_path = configure_cuda_compilers(cuda_version)
@@ -695,7 +801,7 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     # Configure with CMake
     log_message("Configuring CMake build")
     success, output = run_command(
-        ["cmake", ".."] + cmake_flags,
+        ["cmake", str(LLAMA_DIR)] + cmake_flags,
         cwd=BUILD_DIR,
         timeout=180,
         env=cuda_env
@@ -773,72 +879,6 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     
     return True
 
-def setup_python_env(cuda_version: str, arch_string: str) -> bool:
-    """Setup Python environment with detailed feedback"""
-    log_message("Creating Python env...")
-    time.sleep(1)
-    
-    # Clean up existing venv
-    if VENV_DIR.exists():
-        log_message("Removing existing venv")
-        shutil.rmtree(VENV_DIR)
-        time.sleep(1)
-    
-    # Create virtual environment
-    log_message("Creating virtual env")
-    success, output = run_command([sys.executable, "-m", "venv", str(VENV_DIR)])
-    if not success:
-        log_message(f"Venv failed: {output}", "ERROR")
-        time.sleep(3)
-        raise InstallerError("Venv creation failed")
-    log_message("Virtual env created")
-    time.sleep(1)
-    
-    # Upgrade pip
-    pip = str(VENV_DIR / "bin" / "pip")
-    log_message("Upgrading pip...")
-    success, output = run_command([pip, "install", "--upgrade", "pip", "wheel", "setuptools"], timeout=300)
-    if not success:
-        log_message(f"Pip upgrade failed: {output}", "ERROR")
-        time.sleep(3)
-        raise InstallerError("Pip upgrade failed")
-    log_message("Pip upgraded successfully")
-    time.sleep(1)
-    
-    # Install basic requirements
-    basic_reqs = [req for req in REQUIREMENTS if not req.startswith("llama-cpp-python")]
-    log_message("Installing basic packages")
-    success, output = run_command([pip, "install"] + basic_reqs, timeout=600)
-    if not success:
-        log_message(f"Basic packages failed: {output}", "ERROR")
-        time.sleep(3)
-        raise InstallerError("Basic packages failed")
-    log_message("Basic packages installed")
-    time.sleep(1)
-    
-    # Install llama-cpp-python with CUDA
-    log_message("Compiling llama-cpp-python")
-    env, gcc_path = configure_cuda_compilers(cuda_version)
-    env.update({
-        "LLAMA_CUDA": "1",
-        "CMAKE_ARGS": f"-DLLAMA_CUDA=ON -DLLAMA_CUDA_UNIFIED_MEMORY=ON -DCMAKE_CUDA_ARCHITECTURES={arch_string} -DCMAKE_CUDA_HOST_COMPILER={gcc_path}",
-        "FORCE_CMAKE": "1",
-        "CUDACXX": "/usr/local/cuda/bin/nvcc"
-    })
-    success, output = run_command([
-        pip, "install", "--force-reinstall", "--no-cache-dir", "llama-cpp-python==0.2.23"
-    ], timeout=1200, env=env)
-    if not success:
-        log_message(f"llama-cpp-python failed: {output}", "ERROR")
-        time.sleep(3)
-        raise InstallerError("llama-cpp-python failed")
-    log_message("llama-cpp-python installed")
-    time.sleep(1)
-    
-    log_message("Python env complete")
-    time.sleep(1)
-    return True
-
 def create_config(system_info: Dict[str, any]) -> None:
     """Generate config file"""
     log_message("Creating config...")
@@ -900,6 +940,73 @@ def create_config(system_info: Dict[str, any]) -> None:
         log_message("Invalid config JSON", "ERROR")
         time.sleep(3)
         raise InstallerError("Invalid JSON config")
+
+def setup_python_env(cuda_version: str, arch_string: str) -> bool:
+    """Setup Python environment with detailed feedback"""
+    log_message("Creating Python env...")
+    time.sleep(1)
+    
+    # Clean up existing venv
+    if VENV_DIR.exists():
+        log_message("Removing existing venv")
+        shutil.rmtree(VENV_DIR)
+        time.sleep(1)
+    
+    # Create virtual environment
+    log_message("Creating virtual env")
+    success, output = run_command([sys.executable, "-m", "venv", str(VENV_DIR)])
+    if not success:
+        log_message(f"Venv failed: {output}", "ERROR")
+        time.sleep(3)
+        raise InstallerError("Venv creation failed")
+    log_message("Virtual env created")
+    time.sleep(1)
+    
+    # Upgrade pip
+    pip = str(VENV_DIR / "bin" / "pip")
+    log_message("Upgrading pip...")
+    success, output = run_command([pip, "install", "--upgrade", "pip", "wheel", "setuptools"], timeout=120)
+    if not success:
+        log_message(f"Pip upgrade failed: {output}", "ERROR")
+        time.sleep(3)
+        raise InstallerError("Pip upgrade failed")
+    log_message("Pip upgraded successfully")
+    time.sleep(1)
+    
+    # Install basic requirements
+    basic_reqs = [req for req in REQUIREMENTS if not req.startswith("llama-cpp-python")]
+    log_message("Installing basic packages")
+    success, output = run_command([pip, "install"] + basic_reqs, timeout=600)
+    if not success:
+        log_message(f"Basic packages failed: {output}", "ERROR")
+        time.sleep(3)
+        raise InstallerError("Basic packages failed")
+    log_message("Basic packages installed")
+    time.sleep(1)
+    
+    # Install llama-cpp-python with CUDA
+    log_message("Compiling llama-cpp-python")
+    env, gcc_path = configure_cuda_compilers(cuda_version)
+    env.update({
+        "LLAMA_CUDA": "1",
+        "CMAKE_ARGS": f"-DLLAMA_CUDA=ON -DLLAMA_CUDA_UNIFIED_MEMORY=ON -DCMAKE_CUDA_ARCHITECTURES={arch_string} -DCMAKE_CUDA_HOST_COMPILER={gcc_path}",
+        "FORCE_CMAKE": "1",
+        "CUDACXX": "/usr/local/cuda/bin/nvcc"
+    })
+    success, output = run_command([
+        pip, "install", "--force-reinstall", "--no-cache-dir", "llama-cpp-python==0.2.23"
+    ], timeout=1200, env=env)
+    if not success:
+        log_message(f"llama-cpp-python failed: {output}", "ERROR")
+        time.sleep(3)
+        raise InstallerError("llama-cpp-python failed")
+    log_message("llama-cpp-python installed")
+    time.sleep(1)
+    
+    log_message("Python env complete")
+    time.sleep(1)
+    return True
+
 
 def print_system_summary(system_info: Dict[str, any]) -> None:
     """Display system summary"""
