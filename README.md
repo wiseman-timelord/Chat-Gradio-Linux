@@ -71,6 +71,7 @@ Starting installer...
 - R.A.M. - Models are stored in Unified Memory, and processes on the GPU. This method should cover most model cases.
 
 ### Development
+- Need to complete "./installer.py" script.
 - we will want an additional bar showing `GPU Ram Usage / System Ram Usage`. Somehow travelling bars on top and bottom, for memory/but this would be using frames, is this possible?
 
 ### File Structure
