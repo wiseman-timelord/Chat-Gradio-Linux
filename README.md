@@ -35,7 +35,7 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 Selection; Menu Options = 1-3, Exit Bash = X: 
 
 ```
-- Installer issues currently...
+- Installer currently (not working)...
 ```
 ===============================================================================
     Chat-Linux-Gguf: Installer
