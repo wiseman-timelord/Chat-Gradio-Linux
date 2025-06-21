@@ -665,14 +665,28 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     # Configure CUDA compilers
     cuda_env, gcc_path = configure_cuda_compilers(cuda_version)
     
-    # Prepare cmake flags with explicit host compiler
+    # Create patch for __builtin_assume
+    patch_h = BUILD_DIR / "patch.h"
+    with open(patch_h, "w") as f:
+        f.write("#ifndef PATCH_H\n")
+        f.write("#define PATCH_H\n")
+        f.write("#ifdef __builtin_assume\n")
+        f.write("#undef __builtin_assume\n")
+        f.write("#endif\n")
+        f.write("#define __builtin_assume(x) ((void)0)\n")
+        f.write("#endif\n")
+    log_message("Applied patch for __builtin_assume")
+    time.sleep(1)
+    
+    # Prepare cmake flags with explicit host compiler and patch
     cmake_flags = [
         "-DGGML_CUDA=ON",
         "-DGGML_CUDA_UNIFIED_MEMORY=ON",
         "-DGGML_CUDA_F16=ON",
         "-DCMAKE_BUILD_TYPE=Release",
         f"-DCMAKE_CUDA_ARCHITECTURES={arch_string}",
-        f"-DCMAKE_CUDA_HOST_COMPILER={gcc_path}"
+        f"-DCMAKE_CUDA_HOST_COMPILER={gcc_path}",
+        f"-DCMAKE_CUDA_FLAGS:STRING=-include {str(patch_h.resolve())}"
     ]
     
     # Set CUDA environment
@@ -693,15 +707,16 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     log_message("CMake configured successfully")
     time.sleep(1)
     
-    # Compile binary - changed target from 'main' to 'llama'
+    # Compile binary - build all targets for maximum coverage
     log_message("Compiling binary...")
     cpu_count = min(os.cpu_count() or 4, 8)
     success, output = run_command(
-        ["make", "-j", str(cpu_count), "llama"],
+        ["make", "-j", str(cpu_count), "all"],
         cwd=BUILD_DIR,
         timeout=900,
         env=cuda_env
     )
+    log_message(f"Make output: {output}", "INFO")  # Log full make output
     if not success:
         log_message(f"Make failed: {output}", "ERROR")
         time.sleep(3)
@@ -709,27 +724,44 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
     log_message("Binary compiled successfully")
     time.sleep(1)
     
-    # Install binary - updated possible locations to look for
+    # Install binary - flexible search for executables
     log_message("Installing binary...")
     possible_locations = [
+        BUILD_DIR / "bin" / "main",
+        BUILD_DIR / "main",
         BUILD_DIR / "bin" / "llama",
         BUILD_DIR / "llama",
-        BUILD_DIR / "bin" / "main",  # Keep old path for backward compatibility
-        BUILD_DIR / "main"           # Keep old path for backward compatibility
+        BUILD_DIR / "bin" / "llama-cli",
+        BUILD_DIR / "llama-cli",
     ]
     llama_binary = next((loc for loc in possible_locations if loc.exists()), None)
+    
     if not llama_binary:
-        log_message("Binary not found", "ERROR")
-        time.sleep(3)
-        raise InstallerError("Compiled binary missing")
+        # Log directory contents for debugging
+        log_message("Searching for executables in build directory...", "WARNING")
+        build_files = [f for f in BUILD_DIR.rglob("*") if f.is_file() and os.access(f, os.X_OK)]
+        if build_files:
+            log_message("Found executables:", "WARNING")
+            for f in build_files:
+                log_message(str(f), "WARNING")
+            # Use the first executable found as a fallback
+            llama_binary = build_files[0]
+            log_message(f"Using fallback binary: {llama_binary}", "WARNING")
+        else:
+            log_message("Build directory contents:", "WARNING")
+            for item in BUILD_DIR.rglob("*"):
+                log_message(str(item), "WARNING")
+            log_message("No executables found", "ERROR")
+            time.sleep(3)
+            raise InstallerError("Compiled binary missing")
     
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(llama_binary, BIN_DIR / "llama")
     os.chmod(BIN_DIR / "llama", 0o755)
-    log_message("Binary installed successfully")
+    log_message(f"Binary installed from {llama_binary} to {BIN_DIR / 'llama'}")
     time.sleep(1)
     
-    # Test binary - updated binary name
+    # Test binary
     log_message("Testing binary...")
     success, output = run_command([str(BIN_DIR / "llama"), "--help"], timeout=10)
     if not success:
@@ -765,7 +797,7 @@ def setup_python_env(cuda_version: str, arch_string: str) -> bool:
     # Upgrade pip
     pip = str(VENV_DIR / "bin" / "pip")
     log_message("Upgrading pip...")
-    success, output = run_command([pip, "install", "--upgrade", "pip", "wheel", "setuptools"], timeout=120)
+    success, output = run_command([pip, "install", "--upgrade", "pip", "wheel", "setuptools"], timeout=300)
     if not success:
         log_message(f"Pip upgrade failed: {output}", "ERROR")
         time.sleep(3)
