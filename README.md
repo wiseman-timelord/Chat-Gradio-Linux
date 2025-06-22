@@ -176,7 +176,6 @@ Running validation checks...
 ✓   - config field vram_mb
 ✗ 
 Validation failed: Configuration validation failed
-Press Enter to continue...
 
 ```
 
