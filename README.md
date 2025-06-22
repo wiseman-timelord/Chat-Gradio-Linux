@@ -1,5 +1,5 @@
 # Chat-Linux-Gguf
-Status: Alpha - Issues with installer (the reason I use pre-built wheels normally, see `Installer Issues` below).
+Status: Alpha - Progression/BugFixing/Correction (Early Stage).
 
 ### Description
 Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/wiseman-timelord/Chat-Gradio-Gguf) (which runs on Windows). So, the plan for the differences are...
