@@ -138,20 +138,6 @@ run_main_program() {
         return
     fi
     
-    # Run validation before launching
-    source .venv/bin/activate
-    python3 validater.py
-    local validation_exit_code=$?
-    deactivate
-    
-    if [ $validation_exit_code -ne 0 ]; then
-        log_message "Error: Validation failed. Cannot run main program." "ERROR"
-        sleep 3
-        pause_if_interactive
-        main_menu
-        return
-    fi
-    
     echo "Starting Chat-Linux-Gguf..."
     sleep 1
     
