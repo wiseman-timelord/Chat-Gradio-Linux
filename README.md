@@ -149,7 +149,7 @@ Starting installer...
 3. To run the installation of requirements `sudo bash ./Chat-Linux-Gguf.sh`, then select option `2. Run Installation` from the menu, this may take some time (hopefully work for you, or try it again best advice for now.).
 4. Having returned to the bash menu after successful install, one would use option `1. Run Main Program`, to load the gradio interface in the popup browser window.
 5. Go to `Configuration` tab in the gradio interface, configure the, hardware, models, etc, to your liking, ensure to use sensible values, for optimal results, then load model.
-6. Go back to `Conversation` tab in the gradio interface...TBa
+6. Go back to `Conversation` tab in the gradio interface...TBA
 - For normal usage after install you may use the program via command `bash ./Chat-Linux-Gguf.sh` (ie without sudo hopefully).
 
 # Development
