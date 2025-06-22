@@ -74,13 +74,15 @@ CONFIG_TEMPLATE = """{
         "n_batch": %d,
         "max_history_slots": 12,
         "max_attach_slots": 6,
-        "session_log_height": 500
+        "session_log_height": 500,
+        "use_python_bindings": true
     },
     "backend_config": {
         "available_gpus": %s,
         "selected_gpu": %d,
         "cuda_version": "CUDA %s",
-        "compute_capability": "%s"
+        "compute_capability": "%s",
+        "vram_mb": %d
     }
 }"""
 
@@ -93,7 +95,6 @@ def log_message(message: str, level: str = "INFO") -> None:
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {level}: {message}")
     sys.stdout.flush()
-
 
 def display_progress(progress: float, downloaded: int, total: int, elapsed: float, estimated: float) -> None:
     """Display progress bar with 10 steps, percent, size, and time"""
@@ -862,14 +863,14 @@ def compile_llama_cpp(cuda_version: str, arch_string: str) -> bool:
             raise InstallerError("Compiled binary missing")
     
     BIN_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy(llama_binary, BIN_DIR / "llama")
-    os.chmod(BIN_DIR / "llama", 0o755)
-    log_message(f"Binary installed from {llama_binary} to {BIN_DIR / 'llama'}")
+    shutil.copy(llama_binary, BIN_DIR / "main")
+    os.chmod(BIN_DIR / "main", 0o755)
+    log_message(f"Binary installed from {llama_binary} to {BIN_DIR / 'main'}")
     time.sleep(1)
     
     # Test binary
     log_message("Testing binary...")
-    success, output = run_command([str(BIN_DIR / "llama"), "--help"], timeout=10)
+    success, output = run_command([str(BIN_DIR / "main"), "--help"], timeout=10)
     if not success:
         log_message(f"Binary test failed: {output}", "WARNING")
         time.sleep(1)
@@ -915,12 +916,35 @@ def create_config(system_info: Dict[str, any]) -> None:
     log_message("Writing config file")
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
-        f.write(CONFIG_TEMPLATE % (
+        f.write("""{
+    "model_settings": {
+        "model_dir": "models",
+        "model_name": "",
+        "context_size": 8192,
+        "temperature": 0.66,
+        "repeat_penalty": 1.1,
+        "mmap": false,
+        "mlock": false,
+        "n_batch": %d,
+        "max_history_slots": 12,
+        "max_attach_slots": 6,
+        "session_log_height": 500,
+        "use_python_bindings": true
+    },
+    "backend_config": {
+        "available_gpus": %s,
+        "selected_gpu": %d,
+        "cuda_version": "CUDA %s",
+        "compute_capability": "%s",
+        "vram_mb": %d
+    }
+}""" % (
             n_batch,
             json.dumps(system_info["gpus"]),
             system_info["selected_gpu"],
             system_info["cuda_version"],
-            gpu["compute_capability"]
+            gpu["compute_capability"],
+            vram_mb
         ))
     log_message("Config file written")
     time.sleep(1)
@@ -1007,7 +1031,6 @@ def setup_python_env(cuda_version: str, arch_string: str) -> bool:
     time.sleep(1)
     return True
 
-
 def print_system_summary(system_info: Dict[str, any]) -> None:
     """Display system summary"""
     log_message("System Summary:")
@@ -1036,10 +1059,10 @@ def main():
         if not install_system_deps(system_info):
             raise InstallerError("System dependencies failed")
         
+        create_config(system_info)
         setup_llama_cpp()
         compile_llama_cpp(system_info['cuda_version'], system_info['cuda_architectures'])
         setup_python_env(system_info['cuda_version'], system_info['cuda_architectures'])
-        create_config(system_info)
         
         log_message("Install complete")
         log_message(f"Run: {VENV_DIR}/bin/python launcher.py")

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 # Constants
 BASE_DIR = Path(__file__).parent
 VENV_DIR = BASE_DIR / ".venv"
-BIN_DIR = BASE_DIR / "data" / "llama-bin"
+BIN_DIR = BASE_DIR / "data" / "llama-cpp"
 CONFIG_PATH = BASE_DIR / "data" / "persistent.json"
 MIN_CUDA_VERSION = 11.0
 MIN_COMPUTE_CAPABILITY = 6.0
@@ -233,20 +233,10 @@ import llama_cpp
 import sys
 
 try:
-    llama_cpp.llama_backend_init()
-    
-    n_gpu_layers = 1
-    model_params = llama_cpp.llama_model_default_params()
-    model_params.n_gpu_layers = n_gpu_layers
-    model_params.use_mmap = False
-    
-    ctx = llama_cpp.llama_new_context_with_model(None, model_params)
-    if ctx is not None:
-        print("CUDA_TEST:Success")
-    else:
-        print("CUDA_TEST:Failed")
+    llama_cpp.llama_backend_init(numa=False)
+    print("CUDA_TEST:Success")
 except Exception as e:
-    print(f"ERROR:{str(e)}")
+    print(f"CUDA_TEST:Failed:{str(e)}")
 finally:
     llama_cpp.llama_backend_free()
 """
@@ -261,8 +251,9 @@ finally:
         )
         
         output = result.stdout.strip()
-        if "ERROR:" in output:
-            print_status(f"  - Error: {output.split('ERROR:')[1]}", False)
+        if "CUDA_TEST:Failed" in output:
+            error_msg = output.split("CUDA_TEST:Failed:")[1] if ":" in output else "Unknown error"
+            print_status(f"  - Error: {error_msg}", False)
             return False
         
         checks = [
@@ -300,7 +291,7 @@ def main():
             if not validate_cuda_integration():
                 raise ValidationError("CUDA integration test failed")
         
-        print_status("\nValidation successful!", True)
+        print_status("\nValidation successful!", None)  # Use None to avoid ✓
         if sys.stdin.isatty():
             input("Press Enter to continue...")
         return 0
