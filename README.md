@@ -192,5 +192,5 @@ project_root/
 
 ### Notation
 - Ubuntu ChatBots now? In-short Ubuntu 24.10 has allows to install, "RX 470" as main with "1060 3GB" as compute for cuda, with no issues, thanks to help from [X-Grok](www.x.com).
-- Advise [OpenSnitch](https://github.com/evilsocket/opensnitch) for easier firewall rule creation/management, download and install the .deb file (with optional assistance with AI), as found `APT/Software Manager` installer has issues. 
+- Advise [OpenSnitch](https://github.com/evilsocket/opensnitch) for easier firewall rule creation/management, download and install the .deb file (with optional assistance from AI), as found `APT/Software Manager` installer has issues. 
 - Produced via manually prompting AI with NotePadNext v0.12, making use of AI Systems, Grok, X-Grok, DeepSeek, Claude.
