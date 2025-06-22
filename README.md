@@ -102,20 +102,37 @@ Starting installer...
 ...
 
 ...
-[2025-06-21 12:51:55] INFO: Binary compiled successfully
-[2025-06-21 12:51:56] INFO: Installing binary...
-[2025-06-21 12:51:56] INFO: Binary installed from /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/data/temp/llama.cpp/build/bin/llama-cli to /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/data/llama-cpp/llama
-[2025-06-21 12:51:57] INFO: Testing binary...
-[2025-06-21 12:51:57] INFO: Binary test passed
-[2025-06-21 12:51:58] INFO: Creating Python env...
-[2025-06-21 12:51:59] INFO: Creating virtual env
-[2025-06-21 12:52:01] INFO: Virtual env created
-[2025-06-21 12:52:02] INFO: Upgrading pip...
-[2025-06-21 12:54:02] ERROR: Pip upgrade failed: Timeout after 120s
-[2025-06-21 12:54:05] ERROR: Failed: Pip upgrade failed
-[2025-06-21 12:54:05] INFO: Cleaning up...
-[2025-06-21 12:54:06] ERROR: Installation failed (code: 1)
-[2025-06-21 12:54:09] INFO: Virtual environment status reset
+[2025-06-22 20:43:45] INFO: Binary compiled successfully
+[2025-06-22 20:43:46] INFO: Installing binary...
+[2025-06-22 20:43:46] INFO: Binary installed from /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/data/temp/llama.cpp/build/bin/llama-cli to /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/data/llama-cpp/llama
+[2025-06-22 20:43:47] INFO: Testing binary...
+[2025-06-22 20:43:47] INFO: Binary test passed
+[2025-06-22 20:43:48] INFO: Creating Python env...
+[2025-06-22 20:43:49] INFO: Creating virtual env
+[2025-06-22 20:43:51] INFO: Virtual env created
+[2025-06-22 20:43:52] INFO: Upgrading pip...
+[2025-06-22 20:44:16] INFO: Pip upgraded successfully
+[2025-06-22 20:44:17] INFO: Installing basic packages
+[2025-06-22 20:53:31] INFO: Basic packages installed
+[2025-06-22 20:53:32] INFO: Compiling llama-cpp-python
+[2025-06-22 20:53:32] INFO: Checking compiler compatibility
+[2025-06-22 20:53:33] INFO: CUDA 11.0 max gcc: 9
+[2025-06-22 20:53:34] INFO: Using gcc-9
+[2025-06-22 20:53:35] INFO: Compiler: gcc-9 (Ubuntu 9.5.0-6ubuntu2) 9.5.0
+[2025-06-22 20:54:53] INFO: llama-cpp-python installed
+[2025-06-22 20:54:54] INFO: Python env complete
+[2025-06-22 20:54:55] INFO: Creating config...
+[2025-06-22 20:54:56] INFO: Removing existing data
+[2025-06-22 20:54:57] INFO: Creating data directories
+[2025-06-22 20:54:57] INFO: Data directories created
+[2025-06-22 20:54:58] INFO: Writing config file
+[2025-06-22 20:54:58] INFO: Config file written
+[2025-06-22 20:54:59] INFO: Config verified
+[2025-06-22 20:55:00] INFO: Install complete
+[2025-06-22 20:55:00] INFO: Run: /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/.venv/bin/python launcher.py
+[2025-06-22 20:55:00] INFO: Installation completed
+[2025-06-22 20:55:01] INFO: Virtual environment status reset
+
 
 ```
 
@@ -130,7 +147,9 @@ Starting installer...
 1. Download latest `Release` version, and expand to a suitable location, then open a terminal in that location.
 2. Make "Chat-Linux-Gguf.sh" executable with `sudo chmod +x ./Chat-Linux-Gguf.sh`.
 3. To run the installation of requirements `sudo bash ./Chat-Linux-Gguf.sh`, then select option `2. Run Installation` from the menu, this may take some time (hopefully work for you, or try it again best advice for now.).
-4. Having returned to the bash menu after successful install, one would use option `1. Run Main Program`, to load the gradio interface in the popup browser windop.
+4. Having returned to the bash menu after successful install, one would use option `1. Run Main Program`, to load the gradio interface in the popup browser window.
+5. Go to `Configuration` tab in the gradio interface, configure the, hardware, models, etc, to your liking, ensure to use sensible values, for optimal results, then load model.
+6. Go back to `Conversation` tab in the gradio interface...TBa
 - For normal usage after install you may use the program via command `bash ./Chat-Linux-Gguf.sh` (ie without sudo hopefully).
 
 # Development
