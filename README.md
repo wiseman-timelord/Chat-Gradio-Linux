@@ -135,14 +135,14 @@ Starting installer...
 
 
 ```
-- Validation script is interesting...
+- Validation script provides piece of mind...
 ```
 ===============================================================================
     Chat-Linux-Gguf: Validation
 ===============================================================================
 
 Running validation checks...
-[2025-06-22 22:56:22] INFO: Activated: .venv
+[2025-06-23 00:36:40] INFO: Activated: .venv
 • Validating environment...
 ✓   - Ubuntu version (24.1)
 ✓   - CUDA version (11.0)
@@ -168,14 +168,16 @@ Running validation checks...
 ✓   - llama-cpp-python
 • Validating configuration...
 ✓   - llama binary path
-✗   - use python bindings
+✓   - use python bindings
 ✓   - unified memory enabled
 ✓   - VRAM allocation
 ✓   - config field model_dir
 ✓   - config field n_batch
 ✓   - config field vram_mb
-✗ 
-Validation failed: Configuration validation failed
+• Testing CUDA integration...
+✓   - CUDA initialization
+✓ 
+Validation successful!
 
 ```
 
