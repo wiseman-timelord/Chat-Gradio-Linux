@@ -135,6 +135,51 @@ Starting installer...
 
 
 ```
+- Validation script is interesting...
+```
+===============================================================================
+    Chat-Linux-Gguf: Validation
+===============================================================================
+
+Running validation checks...
+[2025-06-22 22:56:22] INFO: Activated: .venv
+• Validating environment...
+✓   - Ubuntu version (24.1)
+✓   - CUDA version (11.0)
+✓   - Unified memory support (GPU 0)
+✓   - venv exists
+✓   - python exists
+✓   - llama bin exists
+✓   - config exists
+✓   - data temp exists
+✓   - data history exists
+✓   - data vectors exists
+• Validating libraries...
+✓   - gradio
+✓   - requests
+✓   - pyperclip
+✓   - yake
+✓   - psutil
+✓   - duckduckgo-search
+✓   - newspaper3k
+✓   - langchain-community
+✓   - pygments
+✓   - lxml_html_clean
+✓   - llama-cpp-python
+• Validating configuration...
+✓   - llama binary path
+✗   - use python bindings
+✓   - unified memory enabled
+✓   - VRAM allocation
+✓   - config field model_dir
+✓   - config field n_batch
+✓   - config field vram_mb
+✗ 
+Validation failed: Configuration validation failed
+Press Enter to continue...
+
+```
+
 
 ### Requirements
 - O.S. - Linux Only (Ubuntu ~24.10 recommended).
