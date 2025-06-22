@@ -35,7 +35,7 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 Selection; Menu Options = 1-3, Exit Bash = X: 
 
 ```
-- Installer currently (this is why the program was not done in time for solstice)...
+- Installer currently (my fav part being `Binary compiled successfully`)...
 ```
 ===============================================================================
     Chat-Linux-Gguf: Installer
@@ -126,7 +126,14 @@ Starting installer...
 - Cuda Toolkit - You must install, Version [11.8](https://developer.nvidia.com/cuda-11-8-0-download-archive) or [12.9](https://developer.nvidia.com/cuda-12-9-0-download-archive), depending upon Cuda level of card for processing.
 - R.A.M. - Models are stored in Unified Memory, and processes on the GPU. This method should cover most model cases.
 
-### Development
+### Usage
+1. Download latest `Release` version, and expand to a suitable location, then open a terminal in that location.
+2. Make "Chat-Linux-Gguf.sh" executable with `sudo chmod +x ./Chat-Linux-Gguf.sh`.
+3. To run the installation of requirements `sudo bash ./Chat-Linux-Gguf.sh`, then select option `2. Run Installation` from the menu, this may take some time (hopefully work for you, or try it again best advice for now.).
+4. Having returned to the bash menu after successful install, one would use option `1. Run Main Program`, to load the gradio interface in the popup browser windop.
+- For normal usage after install you may use the program via command `bash ./Chat-Linux-Gguf.sh` (ie without sudo hopefully).
+
+# Development
 - Need to complete "./installer.py" script.
 - we will want an additional bar showing `GPU Ram Usage / System Ram Usage`. Somehow travelling bars on top and bottom, for memory/but this would be using frames, is this possible?
 
