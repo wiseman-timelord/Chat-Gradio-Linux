@@ -105,17 +105,25 @@ def main():
         script_dir = Path(__file__).parent.resolve()
         os.chdir(script_dir)
         print("Directory set"); time.sleep(1)
+        
+        # Initialize data paths with absolute paths
         temporary.DATA_DIR = str(script_dir / "data")
-        print("Data directory set"); time.sleep(1)
+        temporary.CONFIG_PATH = str(Path(temporary.DATA_DIR) / "persistent.json")
+        temporary.HISTORY_DIR = str(Path(temporary.DATA_DIR) / "history")
+        temporary.TEMP_DIR = str(Path(temporary.DATA_DIR) / "temp")
+        temporary.LLAMA_CPP_BINARY = str(Path(temporary.DATA_DIR) / "llama-cpp" / "main")
+        
+        print(f"Data directory: {temporary.DATA_DIR}"); time.sleep(1)
         Path(temporary.DATA_DIR).mkdir(parents=True, exist_ok=True)
         Path(temporary.HISTORY_DIR).mkdir(parents=True, exist_ok=True)
+        Path(temporary.TEMP_DIR).mkdir(parents=True, exist_ok=True)
+        Path(temporary.LLAMA_CPP_BINARY).parent.mkdir(parents=True, exist_ok=True)
         
         # Hardware detection
         detect_hardware()
         
         # Pre-flight checks
-        binary_path = Path("data/llama-cpp/main")
-        if not binary_path.exists():
+        if not Path(temporary.LLAMA_CPP_BINARY).exists():
             print("Binary missing"); time.sleep(1)
             raise FileNotFoundError("llama.cpp binary not found")
         
