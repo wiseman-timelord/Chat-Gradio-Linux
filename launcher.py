@@ -1,7 +1,6 @@
 # launcher.py
 
-import os
-import time
+import os, re, time
 from pathlib import Path
 import subprocess
 import scripts.temporary as temporary
@@ -53,9 +52,10 @@ def check_cuda_availability():
             print("Binary missing"); time.sleep(1)
             return False
 
+        # Improved GPU support check using n-gpu-layers flag
         help_output = subprocess.check_output(f"{binary_path} --help", shell=True).decode()
-        if "unified" not in help_output.lower():
-            print("Unified memory not enabled"); time.sleep(1)
+        if "n-gpu-layers" not in help_output.lower():
+            print("CUDA offload not enabled"); time.sleep(1)
             return False
 
         return True
@@ -63,8 +63,9 @@ def check_cuda_availability():
         print(f"CUDA check error: {str(e)[:60]}"); time.sleep(1)
         return False
 
+
 def detect_hardware():
-    """Detect system RAM and DDR level"""
+    """Detect system RAM and DDR level with better error handling"""
     try:
         # Get total system RAM from /proc/meminfo
         with open('/proc/meminfo', 'r') as f:
@@ -76,10 +77,10 @@ def detect_hardware():
                         print(f"RAM: {temporary.SYSTEM_RAM_MB}MB"); time.sleep(1)
                     break
         
-        # Get DDR level from dmidecode (requires sudo access)
+        # Get DDR level from dmidecode with permission handling
         try:
             output = subprocess.check_output(
-                "sudo dmidecode --type memory | grep 'Type:'", 
+                "sudo dmidecode --type memory 2>/dev/null | grep 'Type:'", 
                 shell=True,
                 stderr=subprocess.DEVNULL
             ).decode()
@@ -88,9 +89,11 @@ def detect_hardware():
                 if ddr_match:
                     temporary.DDR_LEVEL = f"DDR{ddr_match.group(1)}"
                     print(f"DDR: {temporary.DDR_LEVEL}"); time.sleep(1)
+            else:
+                temporary.DDR_LEVEL = "Unknown"
         except:
             temporary.DDR_LEVEL = "Unknown"
-            print("DDR: Unknown"); time.sleep(1)
+            print("DDR: Unknown (run with sudo for details)"); time.sleep(1)
     except Exception as e:
         print(f"Hardware detect: {str(e)[:60]}"); time.sleep(1)
         temporary.SYSTEM_RAM_MB = 0
@@ -118,7 +121,10 @@ def main():
         
         if not check_cuda_availability():
             print("CUDA not detected"); time.sleep(1)
-            raise RuntimeError("CUDA unavailable")
+            # Provide actionable advice instead of crashing
+            print("Check installation with: nvcc --version && nvidia-smi")
+            print("Verify binary supports CUDA: data/llama-cpp/main --help | grep 'n-gpu-layers'")
+            raise RuntimeError("CUDA unavailable. See troubleshooting guide.")
         
         print("Loading config"); time.sleep(1)
         config_status = load_config()
@@ -131,8 +137,15 @@ def main():
             print("Interface failed"); time.sleep(1)
             raise
     except Exception as e:
-        print(f"Launcher error: {str(e)[:60]}"); time.sleep(1)
-        raise
+        print(f"Launcher error: {str(e)[:60]}"); time.sleep(3)
+        # Don't crash - provide troubleshooting info
+        print("\nTROUBLESHOOTING:")
+        print("1. Verify CUDA installation: nvcc --version")
+        print("2. Check GPU detection: nvidia-smi")
+        print("3. Ensure installer ran successfully")
+        print("4. Check binary exists: ls data/llama-cpp/main")
+        print("5. Validate binary: data/llama-cpp/main --help")
+        raise  # Re-raise after showing help
 
 if __name__ == "__main__":
     main()
