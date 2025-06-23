@@ -9,32 +9,6 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system+gpu memory optimally. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
 ### Demonstration
-- The `launcher.py` entry point for main "Chat-Linux-Gguf" program... 
-```
-===============================================================================
-    Chat-Linux-Gguf: Launcher
-===============================================================================
-
-Checking environment...
-Starting Chat-Linux-Gguf...
-[2025-06-23 17:46:28] INFO: Activated: .venv
-Starting launcher
-Launcher initializing
-Directory set
-Data directory set
-RAM: 62173MB
-DDR: DDR4
-ggml_cuda_init: GGML_CUDA_FORCE_MMQ:    no
-ggml_cuda_init: GGML_CUDA_FORCE_CUBLAS: no
-ggml_cuda_init: found 1 CUDA devices:
-  Device 0: NVIDIA GeForce GTX 1060 3GB, compute capability 6.1, VMM: yes
-Loading config
-Config loaded
-Launching interface
-* Running on local URL:  http://127.0.0.1:7860
-* To create a public link, set `share=True` in `launch()`.
-
-```
 - The `Bash Menu` is looking good...
 ```
 ===============================================================================
@@ -59,6 +33,32 @@ Launching interface
 
 ===============================================================================
 Selection; Menu Options = 1-3, Exit Bash = X: 
+
+```
+- The `launcher.py` entry point for main "Chat-Linux-Gguf" program... 
+```
+===============================================================================
+    Chat-Linux-Gguf: Launcher
+===============================================================================
+
+Checking environment...
+Starting Chat-Linux-Gguf...
+[2025-06-23 17:46:28] INFO: Activated: .venv
+Starting launcher
+Launcher initializing
+Directory set
+Data directory set
+RAM: 62173MB
+DDR: DDR4
+ggml_cuda_init: GGML_CUDA_FORCE_MMQ:    no
+ggml_cuda_init: GGML_CUDA_FORCE_CUBLAS: no
+ggml_cuda_init: found 1 CUDA devices:
+  Device 0: NVIDIA GeForce GTX 1060 3GB, compute capability 6.1, VMM: yes
+Loading config
+Config loaded
+Launching interface
+* Running on local URL:  http://127.0.0.1:7860
+* To create a public link, set `share=True` in `launch()`.
 
 ```
 - Installer currently (my fav part being `Binary compiled successfully`)...
