@@ -202,7 +202,7 @@ Running validation checks...
 ✓   - config field vram_mb
 • Testing CUDA integration...
 ✓   - CUDA initialization
-✓ 
+
 Validation successful!
 
 ```
