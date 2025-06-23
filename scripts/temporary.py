@@ -3,6 +3,8 @@
 import time
 
 # Configuration variables with defaults
+DATA_DIR = None
+CONFIG_PATH = None 
 MODEL_FOLDER = "models"
 CONTEXT_SIZE = 8192
 BATCH_SIZE = 2048
@@ -59,6 +61,20 @@ MID_SEPARATOR = "-" * 30
 ALLOWED_EXTENSIONS = {"bat", "py", "sh", "txt", "json", "yaml"}
 MAX_POSSIBLE_HISTORY_SLOTS = 16
 MAX_POSSIBLE_ATTACH_SLOTS = 10
+
+# Default settings (move from settings.py to here)
+DEFAULTS = {
+    "MODEL_FOLDER": "models",
+    "CONTEXT_SIZE": 8192,
+    "BATCH_SIZE": 2048,
+    "TEMPERATURE": 0.66,
+    "REPEAT_PENALTY": 1.1,
+    "MMAP": False,
+    "MLOCK": False,
+    "MAX_HISTORY_SLOTS": 12,
+    "MAX_ATTACH_SLOTS": 6,
+    "SESSION_LOG_HEIGHT": 500,
+}
 
 # Status text entries
 STATUS_TEXTS = {
