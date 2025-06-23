@@ -20,7 +20,7 @@ from scripts.settings import save_config
 from scripts.temporary import (
     USER_COLOR, THINK_COLOR, RESPONSE_COLOR, SEPARATOR, MID_SEPARATOR,
     ALLOWED_EXTENSIONS, SELECTED_GPU, SESSION_ACTIVE,
-    HISTORY_DIR, MODEL_NAME, STATUS_TEXTS, STREAM_OUTPUT
+    HISTORY_DIR, MODEL_NAME, STATUS_TEXTS
 )
 from scripts import utility
 from scripts.utility import (
