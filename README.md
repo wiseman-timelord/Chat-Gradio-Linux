@@ -228,6 +228,7 @@ Validation successful!
 - Need to complete "./installer.py" script.
 - we will want an additional bar showing `GPU Ram Usage / System Ram Usage`. Somehow travelling bars on top and bottom, for memory/but this would be using frames, is this possible?
 - Option to switch between, unified memory / Auto-Calculated Gpu Layers.
+- Build for nVidia/AMDGPU also.
 
 ### File Structure
 Details of file structure...
