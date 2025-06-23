@@ -12,6 +12,9 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The "Interaction" page, where the conversation happens...
 ![preview_image](media/conversation_page.jpg)
 
+- The collapseable Left Panel on the `Interaction` page...
+![preview_image](media/conversation_expand.jpg)
+
 - The "Configuration" page - for configuration of, models and hardware, and relevant components, as well as ui customization...
 ![preview_image](media/configuration_page.jpg)
 
