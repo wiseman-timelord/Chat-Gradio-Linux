@@ -9,6 +9,12 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 - The scripts MUST use unified memory, so as to do the processing on the selected card, while loading models to system+gpu memory optimally. There will be no requirement for calculating how many layers to load to the GPU, we will assume that the models will load on the system memory available. optimize/cleanup functions/processes for removal of the calculations.
 
 ### Demonstration
+- The "Interaction" page, where the conversation happens...
+![preview_image](media/conversation_page.jpg)
+
+- The "Configuration" page - for configuration of, models and hardware, and relevant components, as well as ui customization...
+![preview_image](media/configuration_page.jpg)
+
 - The `Bash Menu` is looking good...
 ```
 ===============================================================================
