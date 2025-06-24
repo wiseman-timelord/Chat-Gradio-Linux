@@ -20,43 +20,44 @@ Chat-Linux-Gguf is the Ubuntu version of [Chat-Gradio-Gguf](https://github.com/w
 
 - The `Bash Menu` is looking good...
 ```
-===============================================================================
-    Chat-Linux-Gguf: Bash Menu
-===============================================================================
+===========================================================================================================
+    Chat-Linux-Gguf: Bash Menu                                                                             
+===========================================================================================================
 
 
 
 
 
 
-    1. Run Main Program
+    1. Run Main Program                                                                                    
 
-    2. Run Installation
+    2. Run Installation                                                                                    
 
-    3. Run Validation
-
-
+    3. Run Validation                                                                                      
 
 
 
 
-===============================================================================
+
+
+===========================================================================================================
 Selection; Menu Options = 1-3, Exit Bash = X: 
+
 
 ```
 - The `launcher.py` entry point for main "Chat-Linux-Gguf" program... 
 ```
-===============================================================================
-    Chat-Linux-Gguf: Launcher
-===============================================================================
+===========================================================================================================
+    Chat-Linux-Gguf: Launcher                                                                              
+===========================================================================================================
 
-Checking environment...
-Starting Chat-Linux-Gguf...
-[2025-06-23 17:46:28] INFO: Activated: .venv
+Checking environment...                                                                                    
+Starting Chat-Linux-Gguf...                                                                                
+[2025-06-24 15:52:53] INFO: Activated: .venv
 Starting launcher
 Launcher initializing
 Directory set
-Data directory set
+Data directory: /media/mastar/Progs_250/Programs/Chat-Linux-Gguf/Chat-Linux-Gguf-A069/data
 RAM: 62173MB
 DDR: DDR4
 ggml_cuda_init: GGML_CUDA_FORCE_MMQ:    no
@@ -68,6 +69,7 @@ Config loaded
 Launching interface
 * Running on local URL:  http://127.0.0.1:7860
 * To create a public link, set `share=True` in `launch()`.
+
 
 ```
 - Installer currently (my fav part being `Binary compiled successfully`)...
