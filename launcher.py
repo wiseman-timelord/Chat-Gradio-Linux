@@ -114,10 +114,18 @@ def main():
         temporary.LLAMA_CPP_BINARY = str(Path(temporary.DATA_DIR) / "llama-cpp" / "main")
         
         print(f"Data directory: {temporary.DATA_DIR}"); time.sleep(1)
-        Path(temporary.DATA_DIR).mkdir(parents=True, exist_ok=True)
-        Path(temporary.HISTORY_DIR).mkdir(parents=True, exist_ok=True)
-        Path(temporary.TEMP_DIR).mkdir(parents=True, exist_ok=True)
-        Path(temporary.LLAMA_CPP_BINARY).parent.mkdir(parents=True, exist_ok=True)
+        
+        # Create directories with explicit permissions
+        data_dir = Path(temporary.DATA_DIR)
+        data_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
+        
+        for dir_path in [
+            temporary.HISTORY_DIR, 
+            temporary.TEMP_DIR, 
+            Path(temporary.LLAMA_CPP_BINARY).parent
+        ]:
+            path = Path(dir_path)
+            path.mkdir(parents=True, exist_ok=True, mode=0o755)
         
         # Hardware detection
         detect_hardware()
@@ -145,15 +153,15 @@ def main():
             print("Interface failed"); time.sleep(1)
             raise
     except Exception as e:
-        print(f"Launcher error: {str(e)[:60]}"); time.sleep(3)
-        # Don't crash - provide troubleshooting info
+        print(f"Launcher error: {str(e)}")
+        time.sleep(3)
         print("\nTROUBLESHOOTING:")
         print("1. Verify CUDA installation: nvcc --version")
         print("2. Check GPU detection: nvidia-smi")
         print("3. Ensure installer ran successfully")
         print("4. Check binary exists: ls data/llama-cpp/main")
         print("5. Validate binary: data/llama-cpp/main --help")
-        raise  # Re-raise after showing help
+        raise
 
 if __name__ == "__main__":
     main()

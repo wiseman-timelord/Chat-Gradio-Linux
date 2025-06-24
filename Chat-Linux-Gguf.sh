@@ -32,16 +32,29 @@ done
 log_message "Required files found"
 sleep 1
 
-# Separator functions for 80 width terminal
+# Separator functions for 120 width terminal
 display_separator_thick() {
-    echo "==============================================================================="
+    echo "==========================================================================================================="
 }
 
 display_separator_thin() {
-    echo "-------------------------------------------------------------------------------"
+    echo "-----------------------------------------------------------------------------------------------------------"
 }
 
-# Main menu (80-width only)
+# Alternative: Dynamic width detection
+display_separator_thick_dynamic() {
+    local width=$(tput cols 2>/dev/null || echo 107)
+    printf '=%.0s' $(seq 1 $width)
+    echo
+}
+
+display_separator_thin_dynamic() {
+    local width=$(tput cols 2>/dev/null || echo 107)
+    printf -- '-%.0s' $(seq 1 $width)
+    echo
+}
+
+# Main menu (120-width)
 main_menu() {
     clear
     display_separator_thick
