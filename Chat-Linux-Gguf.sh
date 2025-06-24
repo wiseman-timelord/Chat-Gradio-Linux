@@ -11,6 +11,13 @@ log_message() {
 # Set terminal title
 echo -ne "\033]0;Chat-Linux-Gguf\007"
 
+# Set terminal size to 107x24 (for llama.cpp output)
+if [[ -t 1 ]]; then
+    log_message "Setting terminal size to 107x30"
+    echo -ne "\033[8;24;107t"
+    sleep 0.5  # Allow time for resize to complete
+fi
+
 # Determine script directory and change to it
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "$SCRIPT_DIR" || {
@@ -32,33 +39,20 @@ done
 log_message "Required files found"
 sleep 1
 
-# Separator functions for 120 width terminal
+# Separator functions for 107 width terminal
 display_separator_thick() {
-    echo "==========================================================================================================="
+    echo "===========================================================================================================" | cut -c 1-107
 }
 
 display_separator_thin() {
-    echo "-----------------------------------------------------------------------------------------------------------"
+    echo "-----------------------------------------------------------------------------------------------------------" | cut -c 1-107
 }
 
-# Alternative: Dynamic width detection
-display_separator_thick_dynamic() {
-    local width=$(tput cols 2>/dev/null || echo 107)
-    printf '=%.0s' $(seq 1 $width)
-    echo
-}
-
-display_separator_thin_dynamic() {
-    local width=$(tput cols 2>/dev/null || echo 107)
-    printf -- '-%.0s' $(seq 1 $width)
-    echo
-}
-
-# Main menu (120-width)
+# Main menu (107-width)
 main_menu() {
     clear
     display_separator_thick
-    echo "    Chat-Linux-Gguf: Bash Menu"
+    echo "    Chat-Linux-Gguf: Bash Menu" | awk '{printf "%-107s\n", $0}'
     display_separator_thick
     echo ""
     echo ""
@@ -66,11 +60,11 @@ main_menu() {
     echo ""
     echo ""
     echo "" 
-    echo "    1. Run Main Program"
+    echo "    1. Run Main Program" | awk '{printf "%-107s\n", $0}'
     echo ""
-    echo "    2. Run Installation"
+    echo "    2. Run Installation" | awk '{printf "%-107s\n", $0}'
     echo ""
-    echo "    3. Run Validation"
+    echo "    3. Run Validation" | awk '{printf "%-107s\n", $0}'
     echo ""
     echo ""
     echo ""
@@ -128,10 +122,10 @@ pause_if_interactive() {
 run_main_program() {
     clear
     display_separator_thick
-    echo "    Chat-Linux-Gguf: Launcher"
+    echo "    Chat-Linux-Gguf: Launcher" | awk '{printf "%-107s\n", $0}'
     display_separator_thick
     echo ""
-    echo "Checking environment..."
+    echo "Checking environment..." | awk '{printf "%-107s\n", $0}'
     
     # Check virtual environment
     if [ ! -f ".venv/bin/python" ]; then
@@ -151,7 +145,7 @@ run_main_program() {
         return
     fi
     
-    echo "Starting Chat-Linux-Gguf..."
+    echo "Starting Chat-Linux-Gguf..." | awk '{printf "%-107s\n", $0}'
     sleep 1
     
     # Activate virtual environment
@@ -184,11 +178,11 @@ run_main_program() {
 run_installation() {
     clear
     display_separator_thick
-    echo "    Chat-Linux-Gguf: Installer"
+    echo "    Chat-Linux-Gguf: Installer" | awk '{printf "%-107s\n", $0}'
     display_separator_thick
     echo ""
-    echo "Note: Installation may require sudo for system dependencies."
-    echo "WARNING: This will delete existing ./data and ./.venv directories."
+    echo "Note: Installation may require sudo for system dependencies." | awk '{printf "%-107s\n", $0}'
+    echo "WARNING: This will delete existing ./data and ./.venv directories." | awk '{printf "%-107s\n", $0}'
     
     if [[ -t 0 ]]; then
         read -p "Continue? (y/N): " confirm
@@ -203,7 +197,7 @@ run_installation() {
     fi
     
     sleep 1
-    echo "Preparing installation..."
+    echo "Preparing installation..." | awk '{printf "%-107s\n", $0}'
     
     # Remove existing data
     if [ -d "data" ]; then
@@ -221,7 +215,7 @@ run_installation() {
         sleep 1
     fi
     
-    echo "Starting installer..."
+    echo "Starting installer..." | awk '{printf "%-107s\n", $0}'
     sleep 1
     
     # Run the installer script
@@ -248,7 +242,7 @@ run_installation() {
 run_validation() {
     clear
     display_separator_thick
-    echo "    Chat-Linux-Gguf: Validation"
+    echo "    Chat-Linux-Gguf: Validation" | awk '{printf "%-107s\n", $0}'
     display_separator_thick
     echo ""
     
@@ -261,7 +255,7 @@ run_validation() {
         return
     fi
     
-    echo "Running validation checks..."
+    echo "Running validation checks..." | awk '{printf "%-107s\n", $0}'
     sleep 1
     
     # Activate virtual environment
