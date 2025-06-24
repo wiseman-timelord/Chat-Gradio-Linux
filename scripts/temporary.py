@@ -54,8 +54,8 @@ session_attached_files = []
 USER_COLOR = "#ffffff"
 THINK_COLOR = "#c8a2c8"
 RESPONSE_COLOR = "#add8e6"
-SEPARATOR = "=" * 40
-MID_SEPARATOR = "-" * 30
+SEPARATOR = "=" * 107
+MID_SEPARATOR = "-" * 107
 
 # Options for Dropdowns
 ALLOWED_EXTENSIONS = {"bat", "py", "sh", "txt", "json", "yaml"}
@@ -93,12 +93,32 @@ STATUS_TEXTS = {
 }
 
 CHAT_FORMAT_MAP = {
+    # Qwen variants
+    'qwen2.5': 'chatml',
     'qwen2': 'chatml',
-    'llama': 'llama-2',
+    'qwen2.5': 'chatml',
     'qwen3': 'chatml',
     'qwen3moe': 'chatml',
+    
+    # Llama variants
+    'llama': 'llama-2',
+    'llama2': 'llama-2',
+    'llama3': 'llama-3',
+    
+    # Deepseek variants
+    'deepseek': 'deepseek',
     'deepseek2': 'deepseek',
+    
+    # Other architectures
     'stablelm': 'chatml',
+    'phi': 'phi',
+    'mistral': 'mistral',
+    'mixtral': 'mixtral',
+    'gemma': 'gemma',
+    'starcoder': 'starcoder',
+    'falcon': 'falcon',
+    'rwkv': 'rwkv',
+    'yi': 'yi'
 }
 
 # Handling Keywords for Special Model Behaviors

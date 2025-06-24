@@ -431,7 +431,7 @@ def launch_interface():
                 with gr.Column(scale=1, elem_classes=["clean-elements"]):
                     config_components = {}
                     with gr.Row(elem_classes=["clean-elements"]):
-                        gr.Markdown("Hardware Information...")
+                        gr.Markdown("Hardware Info...")
                     with gr.Row(elem_classes=["clean-elements"]):
                         config_components.update(
                             selected_gpu=gr.Textbox(
@@ -567,6 +567,7 @@ def launch_interface():
                         custom_components["delete_all_history"] = gr.Button("Delete All History", variant="stop")
                     with gr.Row(elem_classes=["clean-elements"]):
                         gr.Markdown("About Program...")
+                    with gr.Row(elem_classes=["clean-elements"]):
                         gr.Markdown("[Chat-Linux-Gguf](https://github.com/wiseman-timelord/Chat-Linux-Gguf) by [Wiseman-Timelord](https://github.com/wiseman-timelord).")
                     with gr.Row(elem_classes=["clean-elements"]):
                         config_components.update(

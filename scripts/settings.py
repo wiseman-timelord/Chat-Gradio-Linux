@@ -88,12 +88,20 @@ def save_config():
     }
     
     config_path = Path(temporary.CONFIG_PATH)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
     
     try:
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=4)
-        return "Settings saved"
+        return "Settings saved successfully."
+    except PermissionError as e:
+        # Full path printing without truncation
+        error_msg = f"Permission denied: {config_path.resolve()}. Try running with sudo?"
+        print(error_msg)
+        time.sleep(3)
+        return error_msg
     except Exception as e:
-        print(f"Save error: {str(e)[:60]}"); time.sleep(3)
-        return f"Save failed: {str(e)[:60]}"
+        error_msg = f"Save failed: {str(e)}"
+        print(error_msg)
+        time.sleep(3)
+        return error_msg

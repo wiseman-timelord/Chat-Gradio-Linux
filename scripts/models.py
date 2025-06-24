@@ -8,29 +8,51 @@ import scripts.temporary as temporary
 from scripts.prompts import get_system_message
 
 def get_chat_format(metadata):
-    """Determine the chat format based on the model's architecture."""
-    architecture = metadata.get('general.architecture', 'unknown')
-    return temporary.CHAT_FORMAT_MAP.get(architecture, 'llama-2')
+    """Determine the chat format with strict table-based lookup."""
+    architecture = metadata.get('general.architecture', '').lower()
+    
+    if not architecture:
+        print("Warning: No architecture found in metadata")
+        time.sleep(1)
+        raise ValueError("Model architecture not specified in metadata")
+    
+    # Exact match check
+    if architecture in temporary.CHAT_FORMAT_MAP:
+        return temporary.CHAT_FORMAT_MAP[architecture]
+    
+    # Partial match check (only if architecture contains version numbers)
+    if '.' in architecture:
+        base_arch = architecture.split('.')[0]
+        if base_arch in temporary.CHAT_FORMAT_MAP:
+            return temporary.CHAT_FORMAT_MAP[base_arch]
+    
+    raise ValueError(f"Unsupported model architecture: {architecture}")
 
 def get_model_metadata(model_path: str) -> dict:
-    """Retrieve metadata from a GGUF model."""
+    """Retrieve metadata from a GGUF model with enhanced error handling."""
     try:
         from llama_cpp import Llama
-        chat_format = 'chatml' if 'qwen' in model_path.lower() else None
         model = Llama(
             model_path=model_path,
             n_ctx=4096,
             n_batch=1,
             verbose=True,
-            chat_format=chat_format
+            chat_format=None
         )
         metadata = model.metadata
+        
+        # Debug output - remove after testing
+        print("Model metadata keys:")
+        for key in metadata.keys():
+            print(f"- {key}")
+            
         del model
         return metadata
     except Exception as e:
-        print(f"Metadata error: {str(e)[:60]}"); time.sleep(1)
-        return {}
-
+        print(f"Metadata error: {str(e)}")
+        time.sleep(3)  # Longer wait for errors
+        return {'general.architecture': '', 'general.name': Path(model_path).name}
+        
 def get_available_models():
     """Scan model directory for GGUF files."""
     model_dir = Path(temporary.MODEL_FOLDER)
