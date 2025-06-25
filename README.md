@@ -236,7 +236,7 @@ Validation successful!
 - For normal usage after install you may use the program via command `bash ./Chat-Linux-Gguf.sh` (ie without sudo hopefully).
 
 # Development
-- Need to fix model handling, currently no models load.
+- Need to fix model handling, currently no models load. Issue was old version of llama (that was being used due to being compatible with [chat]). Solution is to use/install, llama-cpp and llama_cpp[chat], v3.9, as its 2 separate libraries now (this is what was confusing the AI). It was all to do with chat completion. Note, tried gguf, but i would need to use tables to convert values??!!. 
 - we will want an additional bar showing `GPU Ram Usage / System Ram Usage`. Somehow bars on top or bottom optionally, for, VRAM / SRAM, for selected hardware.
 - Ensure that firstly it will calculate the rough model loaded size, and if it will fit on the GPU, then load to GPU, otherwise there will be an option in configuration for, upon the event of model is too large for gpu then if it will switch between, Unified Memory or On GPU with Excess layers in system memory. If all fits in GPU Ram, then only 1 memory usage bar displayed for VRAM.
 
