@@ -13,7 +13,7 @@ echo -ne "\033]0;Chat-Linux-Gguf\007"
 
 # Set terminal size to 107x24 (for llama.cpp output)
 if [[ -t 1 ]]; then
-    log_message "Setting terminal size to 107x30"
+    log_message "Setting terminal size to 107x24"
     echo -ne "\033[8;24;107t"
     sleep 0.5  # Allow time for resize to complete
 fi
@@ -181,44 +181,12 @@ run_installation() {
     echo "    Chat-Linux-Gguf: Installer" | awk '{printf "%-107s\n", $0}'
     display_separator_thick
     echo ""
-    echo "Note: Installation may require sudo for system dependencies." | awk '{printf "%-107s\n", $0}'
-    echo "WARNING: This will delete existing ./data and ./.venv directories." | awk '{printf "%-107s\n", $0}'
     
-    if [[ -t 0 ]]; then
-        read -p "Continue? (y/N): " confirm
-        if [ "${confirm,,}" != "y" ]; then
-            log_message "Installation cancelled" "INFO"
-            sleep 1
-            main_menu
-            return
-        fi
-    else
-        log_message "Running in non-interactive mode" "INFO"
-    fi
-    
-    sleep 1
-    echo "Preparing installation..." | awk '{printf "%-107s\n", $0}'
-    
-    # Remove existing data
-    if [ -d "data" ]; then
-        rm -rf data
-        log_message "Deleted: data"
-        sleep 1
-    fi
-    
-    # Remove existing virtual environment
-    if [ -d ".venv" ]; then
-        # Ensure we're not in the virtual environment
-        deactivate 2>/dev/null || true
-        rm -rf .venv
-        log_message "Deleted: .venv"
-        sleep 1
-    fi
-    
+    # Remove the confirmation prompt entirely
     echo "Starting installer..." | awk '{printf "%-107s\n", $0}'
     sleep 1
     
-    # Run the installer script
+    # Run the installer script directly
     python3 installer.py
     local exit_code=$?
     
