@@ -1,4 +1,5 @@
 # Chat-Linux-Gguf
+![preview_image](media/project_banner.jpg)
 Status: Alpha - Progression/BugFixing/Correction (Early Stage).
 
 ### Description
